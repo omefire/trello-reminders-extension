@@ -1,0 +1,23 @@
+{
+  "name": "chrome-extension",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {
+    "purescript-prelude": "^4.0.1",
+    "purescript-console": "^4.1.0",
+    "purescript-effect": "^2.0.0",
+    "purescript-react": "^6.0.0",
+    "purescript-react-dom": "^6.0.0",
+    "purescript-web-html": "^1.0.0",
+    "purescript-web-dom": "^1.0.0",
+    "purescript-unsafe-coerce": "^4.0.0",
+    "purescript-js-timers": "4.0.1"
+  },
+  "devDependencies": {
+    "purescript-psci-support": "^4.0.0"
+  }
+}

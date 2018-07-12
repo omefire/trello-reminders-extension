@@ -1,0 +1,20 @@
+{
+  "name": "chrome-extension",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "react": "^16.4.1",
+    "react-dom": "^16.4.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "purs:compile": "purs compile 'bower_components/**/*.purs' 'src/**/*.purs'"
+  },
+  "author": "omefire@gmail.com",
+  "license": "ISC"
+}
