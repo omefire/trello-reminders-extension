@@ -1,0 +1,90 @@
+module Main where -- Card where
+
+
+import Prelude
+
+import Effect (Effect)
+
+import Data.Maybe
+
+import Web.HTML (window) as DOM
+import Web.HTML.Window (document) as DOM
+import Web.DOM.Document (getElementsByClassName, createElement, url) as DOM
+import Web.DOM.Element (setAttribute, toNode, Element) as DOM
+import Web.DOM.Node (firstChild, insertBefore) as DOM
+import React.DOM (text) as DOM
+
+import Partial.Unsafe (unsafePartial)
+import Unsafe.Coerce (unsafeCoerce)
+
+import React as React
+import ReactDOM as ReactDOM
+import Web.DOM.HTMLCollection (item, length)
+import Effect.Timer (setTimeout)
+
+import Control.Monad.Maybe.Trans (runMaybeT, MaybeT(..))
+import Control.Monad.Trans.Class (lift)
+-- import Effect.Aff (delay)
+import Helpers.Card (getCardIdFromUrl)
+import Data.Array (head)
+import Web.DOM.HTMLCollection (toArray)
+
+type CardDetails = {
+  cardId :: String,
+  sidebar :: DOM.Element,
+  actionPane :: DOM.Element
+}
+
+-- main :: Effect Unit
+main = do
+  mCardDetails <- runMaybeT getCardDetails
+  case mCardDetails of
+    Just cardDetails -> displaySetRemindersButton cardDetails
+    Nothing -> do
+      -- delay 200
+      -- main
+      setTimeout 200 main
+
+displaySetRemindersButton :: CardDetails -> Effect Unit
+displaySetRemindersButton cardDetails = do
+  run
+
+
+getCardDetails :: MaybeT Effect CardDetails
+getCardDetails = do
+  window <- lift DOM.window
+  document <- lift $ DOM.document window
+  url <- lift $ DOM.url $ unsafeCoerce document
+  cardId <- getCardIdFromUrl url
+  sidebarCollection <- DOM.getElementsByClassName "window-sidebar" $  unsafeCoerce document
+  mSidebar <- pure head $ toArray sidebarCollection
+  actionPaneCollection <- DOM.getElementsByClassName "other-actions h3" (fromJust mSidebar)
+  actionPanes <- toArray actionPaneCollection
+  actionPane <- pure $ head actionPanes
+  pure { cardId: cardId, sidebar: (fromJust mSidebar), actionPane: actionPane }
+
+run :: Effect Unit
+run = void $ do
+  window <- DOM.window
+  document <- DOM.document window
+  collection <- DOM.getElementsByClassName "header-user" $  unsafeCoerce document
+  element <- item 0 collection
+  let element' = unsafePartial (fromJust element)
+
+  newDivElement <- DOM.createElement "div" $ unsafeCoerce document
+  DOM.setAttribute "id" "trello-reminders" newDivElement
+  DOM.setAttribute "class" "header-btn" newDivElement
+  mFirstChildOfHeaderUserNode <- DOM.firstChild (DOM.toNode element')
+  let firstChildOfHeaderUserNode = unsafePartial (fromJust mFirstChildOfHeaderUserNode)
+  _ <- DOM.insertBefore (DOM.toNode newDivElement) (firstChildOfHeaderUserNode) (DOM.toNode element')
+
+  ReactDOM.render (React.createLeafElement mainClass { }) newDivElement
+
+mainClass :: React.ReactClass { }
+mainClass = React.component "Main" component
+  where
+  component this =
+    pure { state: { }, render: render }
+    where
+      render = do
+        pure $ DOM.text "Trello Reminders"

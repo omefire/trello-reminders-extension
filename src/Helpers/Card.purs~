@@ -1,0 +1,12 @@
+module Helpers.Card (getCardIdFromUrl) where
+
+import Prelude
+
+import Data.Nullable
+import Data.Maybe(Maybe(..))
+
+type URL = String
+foreign import _getXFromUrl :: URL -> String -> Nullable String
+
+getCardIdFromUrl :: URL -> Maybe String
+getCardIdFromUrl url = toMaybe $ _getXFromUrl url "https://trello.com/c/"

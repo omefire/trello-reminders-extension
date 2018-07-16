@@ -15,7 +15,9 @@
     "purescript-web-html": "^1.0.0",
     "purescript-web-dom": "^1.0.0",
     "purescript-unsafe-coerce": "^4.0.0",
-    "purescript-js-timers": "4.0.1"
+    "purescript-js-timers": "4.0.1",
+    "purescript-nullable": "^4.0.0",
+    "purescript-psci-support": "^4.0.0"
   },
   "devDependencies": {
     "purescript-psci-support": "^4.0.0"

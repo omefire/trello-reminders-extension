@@ -26,12 +26,19 @@ import Effect.Timer (setTimeout)
 
 main :: Effect Unit
 main = do 
-  timeOutId <- setTimeout 2000 run
+  boardTimeOutId <- setTimeout 2000 runBoard
+  cardTimeOutId <- setTimeout 2000 runCard
   pure unit
 
+document.addEventListener("visibilitychange", function() {
+  console.log( document.visibilityState );
+});
 
-run :: Effect Unit
-run = void $ do
+-- First check if all the DOM elts are ready and loaded
+--  * If not, try again later (setTimeout)
+--  * If so, display our board
+runBoard :: Effect Unit
+runBoard = void $ do
   window <- DOM.window
   document <- DOM.document window
   collection <- DOM.getElementsByClassName "header-user" $  unsafeCoerce document
