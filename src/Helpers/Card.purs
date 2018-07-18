@@ -1,4 +1,4 @@
-module Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, URL, alert) where
+module Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, URL, alert, getElementById) where
 
 import Prelude
 
@@ -11,8 +11,10 @@ import Web.DOM.Internal.Types (Element, Node) as DOM
 import Web.DOM.Document (getElementsByClassName, Document) as DOM
 import Web.DOM.HTMLCollection (toArray)
 import Data.Array (head)
+import Web.HTML.Window (Window)
 
 type URL = String
+
 foreign import _getXFromUrl :: URL -> String -> Nullable String
 
 getCardIdFromUrl :: URL -> Maybe String
@@ -32,3 +34,8 @@ nextSibling node = do
   pure $ toMaybe sibling 
 
 foreign import alert :: forall a. a -> Effect Unit
+
+foreign import _getElementById :: String -> DOM.Document -> Nullable DOM.Element
+
+getElementById :: String -> DOM.Document -> Effect (Maybe DOM.Element)
+getElementById id document = pure $ toMaybe $ _getElementById id document

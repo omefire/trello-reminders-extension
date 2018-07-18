@@ -26,3 +26,24 @@ exports.alert = function(obj) {
 	alert(JSON.stringify(obj));
     }
 }
+
+exports._getElementById = function(id) {
+    return function(document) {
+	var val = document.getElementById(id);
+	if(!val) {
+	    return null;
+	} else {
+	    //return require('../../bower_components/purescript-nullable/src/Data/Nullable').null;
+	    return require('../../bower_components/purescript-nullable/src/Data/Nullable').notNull(val);
+	}
+	/*return function() {
+	    var val = document.getElementById(id);
+	    if(!val) {
+		return null;
+	    } else {
+		//return require('../../bower_components/purescript-nullable/src/Data/Nullable').null;
+		return require('../../bower_components/purescript-nullable/src/Data/Nullable').notNull(val);
+	    }
+	}*/
+    }
+}
