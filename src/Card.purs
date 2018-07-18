@@ -6,13 +6,15 @@ import Prelude
 
 import Control.Monad.Maybe.Trans (runMaybeT, MaybeT(..))
 import Control.Monad.Trans.Class (lift)
+import Control.MonadZero (guard)
 import Data.Array (head)
 import Effect (Effect)
 import Effect.Timer (setInterval, setTimeout)
-import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert) as Helpers
+import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById) as Helpers
 import Partial.Unsafe (unsafePartial)
 import React as React
-import React.DOM (text) as DOM
+import React.DOM (text, a, div, span, img) as DOM
+import React.DOM.Props as Props
 import ReactDOM as ReactDOM
 import Unsafe.Coerce (unsafeCoerce)
 import Web.DOM.Document (Document, getElementsByClassName, createElement, url) as DOM
@@ -32,28 +34,8 @@ type CardDetails = {
 
 main :: Effect Unit
 main = do
- -- void $ setInterval 100 $ do
- --   isDisplayed <- display
- --   case isDisplayed of
- --     false -> void display
- --     true -> pure unit
- _ <- setInterval 200 $ do
-   oldURL <- get
-   newURL <- getURL
-   if oldURL <> newURL then do
-     display
-     else 
- 
- isDisplayed <- display
- case isDisplayed of
-   false -> do
-     -- void $ setInterval 100 main
-     intervalId <- setInterval 100 main
-     -- save intervalId in the state
-     pure unit
-   true -> do
-     -- clear intervalId that is in the state
-     pure unit
+ void $ setInterval 300 $ void $ do
+   display
 
 display :: Effect Boolean
 display = do
@@ -65,9 +47,14 @@ display = do
     Nothing -> pure false
     Just _ -> pure true
   where
+    g :: Maybe DOM.Element -> Maybe Boolean
+    g Nothing  = Just true
+    g (Just _) = Nothing
+    
     compute :: String -> DOM.Document -> MaybeT Effect Unit
     compute url document = do
-      cardId <- (MaybeT $ pure $ Helpers.getCardIdFromUrl url) :: MaybeT Effect String  
+      rs <- MaybeT $ (pure g) <*> (Helpers.getElementById "trello-reminders-btn" document)
+      cardId <- (MaybeT $ pure $ Helpers.getCardIdFromUrl url) :: MaybeT Effect String
       windowSidebar <- MaybeT $ Helpers.getFirstElementByClassName "window-sidebar" document
       otherActions <- MaybeT $ Helpers.getFirstElementByClassName "other-actions" document
       trelloRemindersBtnDivElt <- lift $ DOM.createElement "a" document
@@ -81,9 +68,7 @@ display = do
       --   * Get the first child
       --   * Add a new child before the first child
       firstChildOfOtherActions <- MaybeT $ DOM.firstChild (unsafeCoerce otherActions)
-      -- _ <- lift $ Helpers.alert $ firstChildOfOtherActions
       secondChildOfOtherActions <- MaybeT $ Helpers.nextSibling (unsafeCoerce firstChildOfOtherActions)
-      -- _ <- lift $ Helpers.alert $ secondChildOfOtherActions
 
       -- Add a new child before the first child of secondChildofotheractions
       pointOfInsertion <- MaybeT $ DOM.firstChild secondChildOfOtherActions
@@ -99,4 +84,39 @@ mainClass = React.component "Main" component
     pure { state: { }, render: render }
     where
       render = do
-        pure $ DOM.text "Trello Reminders"
+        pure $ DOM.div
+                 [
+                   Props.onClick onClick
+                 ]
+
+                 [
+                   DOM.img
+                     [
+                       Props.src "chrome-extension://gjjpophepkbhejnglcmkdnncmaanojkf/images/iconspent.png",
+                       Props.className "agile-spent-icon-cardtimer"
+                     ],
+                   DOM.text "Set a reminder"
+                   -- React.createLeafElement testClass { }
+                 ]
+
+      onClick evt = do
+        -- _ <- lift $ React.createLeafElement testClass { }
+        Helpers.alert "Test"
+        pure unit
+        
+
+{-testClass :: React.ReactClass { }
+testClass = React.component "Test"  comp
+  where
+    comp this = pure { state: { }, render: render }
+      where
+        render = do
+          pure $ DOM.div
+            [
+              Props.className "Serpent"
+            ]
+            
+            [
+              DOM.text "Testing 1, 2, 3 ..."
+            ] -}
+            
