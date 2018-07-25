@@ -35,28 +35,33 @@ type CardDetails = {
 main :: Effect Unit
 main = do
  void $ setInterval 300 $ void $ do
-   display
+   tryDisplay
 
-display :: Effect Boolean
-display = do
+tryDisplay :: Effect Boolean
+tryDisplay = do
   window <- DOM.window
   document <- DOM.document window
   url <- DOM.url $ DOM.toDocument document
-  result <- runMaybeT $ compute url (DOM.toDocument document)
+  result <- runMaybeT $ tryDisplayBtn url (DOM.toDocument document)
   case result of
     Nothing -> pure false
     Just _ -> pure true
   where
-    g :: Maybe DOM.Element -> Maybe Boolean
-    g Nothing  = Just true
-    g (Just _) = Nothing
+    doesElementExist :: Maybe DOM.Element -> Maybe Boolean
+    doesElementExist Nothing  = Just true
+    doesElementExist (Just _) = Nothing
     
-    compute :: String -> DOM.Document -> MaybeT Effect Unit
-    compute url document = do
-      rs <- MaybeT $ (pure g) <*> (Helpers.getElementById "trello-reminders-btn" document)
-      cardId <- (MaybeT $ pure $ Helpers.getCardIdFromUrl url) :: MaybeT Effect String
-      windowSidebar <- MaybeT $ Helpers.getFirstElementByClassName "window-sidebar" document
+    tryDisplayBtn :: String -> DOM.Document -> MaybeT Effect Unit
+    tryDisplayBtn url document = do
+
+      -- Do NOT display button if it's already been displayed
+      _ <- MaybeT $ doesElementExist <$> (Helpers.getElementById "trello-reminders-btn" document)
+
+      -- Do NOT display button if we are not in the context of a Card (we check this by verifying the URL)
+      _ <- MaybeT $ pure $ Helpers.getCardIdFromUrl url
+      
       otherActions <- MaybeT $ Helpers.getFirstElementByClassName "other-actions" document
+      
       trelloRemindersBtnDivElt <- lift $ DOM.createElement "a" document
       _ <- lift $ DOM.setAttribute "id" "trello-reminders-btn" trelloRemindersBtnDivElt
       _ <- lift $ DOM.setAttribute "class" "button-link" trelloRemindersBtnDivElt
@@ -84,39 +89,21 @@ mainClass = React.component "Main" component
     pure { state: { }, render: render }
     where
       render = do
-        pure $ DOM.div
-                 [
-                   Props.onClick onClick
-                 ]
-
-                 [
-                   DOM.img
-                     [
-                       Props.src "chrome-extension://gjjpophepkbhejnglcmkdnncmaanojkf/images/iconspent.png",
-                       Props.className "agile-spent-icon-cardtimer"
-                     ],
-                   DOM.text "Set a reminder"
-                   -- React.createLeafElement testClass { }
-                 ]
+        pure $
+          DOM.div
+          [
+            Props.onClick onClick
+          ]
+  
+          [
+            DOM.img
+            [
+              Props.src "chrome-extension://gjjpophepkbhejnglcmkdnncmaanojkf/images/iconspent.png",
+              Props.className "agile-spent-icon-cardtimer"
+            ],
+            DOM.text "Set a reminder"
+          ]
 
       onClick evt = do
-        -- _ <- lift $ React.createLeafElement testClass { }
         Helpers.alert "Test"
         pure unit
-        
-
-{-testClass :: React.ReactClass { }
-testClass = React.component "Test"  comp
-  where
-    comp this = pure { state: { }, render: render }
-      where
-        render = do
-          pure $ DOM.div
-            [
-              Props.className "Serpent"
-            ]
-            
-            [
-              DOM.text "Testing 1, 2, 3 ..."
-            ] -}
-            
