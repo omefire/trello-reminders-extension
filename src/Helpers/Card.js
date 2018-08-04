@@ -33,17 +33,69 @@ exports._getElementById = function(id) {
 	if(!val) {
 	    return null;
 	} else {
-	    //return require('../../bower_components/purescript-nullable/src/Data/Nullable').null;
 	    return require('../../bower_components/purescript-nullable/src/Data/Nullable').notNull(val);
 	}
-	/*return function() {
-	    var val = document.getElementById(id);
-	    if(!val) {
-		return null;
-	    } else {
-		//return require('../../bower_components/purescript-nullable/src/Data/Nullable').null;
-		return require('../../bower_components/purescript-nullable/src/Data/Nullable').notNull(val);
-	    }
-	}*/
+    }
+}
+
+exports._showDialog = function() {
+    alert("TTT");
+}
+
+exports._head = function(document) {
+    return document.head;
+}
+
+exports.setOnLoad = function(element) {
+    return function(callback) {
+	return function() {
+	    element.onload = callback;
+	}
+    }
+}
+
+//var jQuery = require('../../bower_components/jquery/dist/jquery');
+//var jQueryDialog = require('../../bower_components/jquery-ui/ui/widgets/dialog');
+
+//var JSDOM = require("../../node_modules/jsdom").JSDOM;
+//var window = new JSDOM();
+//var document = (new JSDOM('')).window;
+//global.document = document;
+
+//var $ = require('../../node_modules/jquery-ui/ui/jquery-1-7'); //require('jquery')(window);
+//var jQuery = $;
+
+//require('../../node_modules/jquery-ui/ui/widgets/dialog');
+
+/*var $ = require('jquery');
+var jQuery = $;
+window.jQuery = jQuery;
+window.$ = jQuery;
+//require('jquery-ui');*/
+//require('../../node_modules/jquery-ui/ui/jquery-1-7');
+//require('../../node_modules/jquery-ui/ui/widgets/dialog');
+//require('jquery-ui/ui/widgets/dialog');
+
+exports.jqry = function(selector) {
+    return function() {
+	return $(selector);
+    }
+}
+
+exports.dialog = function(elt) {
+    return function() {
+	return elt.dialog();
+    }
+}
+
+exports.showModal = function(dialog) {
+    return function() {
+	return dialog.showModal();
+    }
+}
+
+exports.show = function(dialog) {
+    return function() {
+	return dialog.show();
     }
 }

@@ -10,10 +10,11 @@ import Control.MonadZero (guard)
 import Data.Array (head)
 import Effect (Effect)
 import Effect.Timer (setInterval, setTimeout)
-import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById) as Helpers
+import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, showDialog, documentHead, setOnLoad,
+                     jqry, dialog, JQuery, JQueryDialog, showModal, show) as Helpers
 import Partial.Unsafe (unsafePartial)
 import React as React
-import React.DOM (text, a, div, span, img) as DOM
+import React.DOM (text, a, div, span, img, form', fieldset', label', dialog, button', select', option') as DOM
 import React.DOM.Props as Props
 import ReactDOM as ReactDOM
 import Unsafe.Coerce (unsafeCoerce)
@@ -21,16 +22,10 @@ import Web.DOM.Document (Document, getElementsByClassName, createElement, url) a
 import Web.DOM.Element (setAttribute, toNode, Element) as DOM
 import Web.DOM.HTMLCollection (item, length)
 import Web.DOM.HTMLCollection (toArray)
-import Web.DOM.Node (firstChild, insertBefore) as DOM
+import Web.DOM.Node (firstChild, insertBefore, appendChild) as DOM
 import Web.HTML (window) as DOM
-import Web.HTML.HTMLDocument (toDocument) as DOM
+import Web.HTML.HTMLDocument (toDocument, body) as DOM
 import Web.HTML.Window (document) as DOM
-
-type CardDetails = {
-  cardId :: String,
-  sidebar :: DOM.Element,
-  actionPane :: DOM.Element
-}
 
 main :: Effect Unit
 main = do
@@ -86,13 +81,43 @@ mainClass :: React.ReactClass { }
 mainClass = React.component "Main" component
   where
   component this =
-    pure { state: { }, render: render }
+    pure { state: { isJqueryLoaded: false, isJqueryUILoaded: false }, render: render <$> React.getState this, componentDidMount: didMount this }
     where
-      render = do
-        pure $
+      didMount _this = do
+        -- When our component is mounted, fetch & insert jQuery, jQueryUI Dialog
+        -- ... and their corresponding Purescript modules
+        window <- DOM.window
+        document <- DOM.document window
+        head <- Helpers.documentHead $ DOM.toDocument document
+        
+        jQueryScript <- DOM.createElement "script" $ DOM.toDocument document
+        _ <- DOM.setAttribute "id" "jquery-script" jQueryScript
+        --_ <- DOM.setAttribute "src" "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js" jQueryScript
+        --_ <- DOM.setAttribute "async" "true" jQueryScript
+        --_ <- Helpers.setOnLoad jQueryScript $ React.setState _this { isJqueryLoaded: true } -- Update the state once jQuery is loaded
+
+        jQueryUIScript <- DOM.createElement "script" $ DOM.toDocument document
+        _ <- DOM.setAttribute "id" "jquery-ui-script" jQueryUIScript
+        --_ <- DOM.setAttribute "src" "https://code.jquery.com/ui/1.12.1/jquery-ui.min.js" jQueryUIScript
+        --_ <- DOM.setAttribute "async" "true" jQueryUIScript
+        --_ <- Helpers.setOnLoad jQueryUIScript $ React.setState _this { isJqueryUILoaded: true } -- Update the state once jQueryUI is loaded
+      
+        _ <- DOM.appendChild (DOM.toNode jQueryScript) (DOM.toNode head)
+        _ <- DOM.appendChild (DOM.toNode jQueryUIScript) (DOM.toNode head)
+
+        pure unit
+        
+                
+      render
+        {
+          isJqueryLoaded,
+          isJqueryUILoaded
+        } =
           DOM.div
           [
-            Props.onClick onClick
+            Props.onClick onClick --,
+            --if (isJqueryLoaded && isJqueryUILoaded) then Props.style {"pointerEvents": "auto"}
+            --             else Props.style {"pointerEvents": "none"}
           ]
   
           [
@@ -101,9 +126,50 @@ mainClass = React.component "Main" component
               Props.src "chrome-extension://gjjpophepkbhejnglcmkdnncmaanojkf/images/iconspent.png",
               Props.className "agile-spent-icon-cardtimer"
             ],
-            DOM.text "Set a reminder"
+            DOM.text "Set a reminder",
+            DOM.dialog
+            [
+              Props._id "dialog-form",
+              Props.hidden true,
+              Props.title "Create new user"
+            ]
+            
+            [
+              DOM.form'
+              [
+                DOM.fieldset'
+                [
+                  DOM.label' [DOM.button' [DOM.text "Login with Trello"] ],
+                  DOM.label'
+                  [
+                    DOM.text "Choose your plan",
+                    DOM.select'
+                    [
+                      DOM.option'
+                      [
+                        DOM.text "Free (1 person, 5 reminders a week), Free"
+                      ],
+                      DOM.option'
+                      [
+                        DOM.text "Solo (1 person, unlimited reminders), $2.99 / month"
+                      ],
+                      DOM.option'
+                      [
+                        DOM.text "Team (5 people, unlimited reminders), $9.99 / month"
+                      ]
+                    ]
+                  ]
+                ]
+              ]
+            ]
           ]
 
       onClick evt = do
-        Helpers.alert "Test"
-        pure unit
+        window <- DOM.window
+        document <- DOM.document window
+        mDialog <- Helpers.getElementById "dialog-form" $ DOM.toDocument document
+        case mDialog of
+          Nothing -> pure unit
+          Just dialog -> do
+            Helpers.showModal dialog
+            pure unit
