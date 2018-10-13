@@ -16,7 +16,7 @@
                 "https://trello.com/*"
             ],
             "js": [
-                "/output/chrome.js"
+                "/index.js"
             ],
             "run_at": "document_end"
         }
