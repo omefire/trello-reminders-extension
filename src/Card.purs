@@ -14,7 +14,7 @@ import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, 
                      jqry, dialog, JQuery, JQueryDialog, showModal, show) as Helpers
 import Partial.Unsafe (unsafePartial)
 import React as React
-import React.DOM (text, a, div, span, img, form', fieldset', label', dialog, button', select', option') as DOM
+import React.DOM (text, a, div, div', span, span', img, form', fieldset', label', dialog, button', button, select', option') as DOM
 import React.DOM.Props as Props
 import ReactDOM as ReactDOM
 import Unsafe.Coerce (unsafeCoerce)
@@ -26,6 +26,7 @@ import Web.DOM.Node (firstChild, insertBefore, appendChild) as DOM
 import Web.HTML (window) as DOM
 import Web.HTML.HTMLDocument (toDocument, body) as DOM
 import Web.HTML.Window (document) as DOM
+import Data.DateTime
 
 main :: Effect Unit
 main = do
@@ -73,103 +74,39 @@ tryDisplay = do
       -- Add a new child before the first child of secondChildofotheractions
       pointOfInsertion <- MaybeT $ DOM.firstChild secondChildOfOtherActions
       _ <- lift $ DOM.insertBefore (unsafeCoerce trelloRemindersBtnDivElt) pointOfInsertion secondChildOfOtherActions
-      _ <- lift $ ReactDOM.render (React.createLeafElement mainClass { }) trelloRemindersBtnDivElt
+      _ <- lift $ ReactDOM.render (React.createLeafElement setReminderClass { }) trelloRemindersBtnDivElt
       pure unit
 
 
-mainClass :: React.ReactClass { }
-mainClass = React.component "Main" component
+
+
+setReminderClass :: React.ReactClass { }
+setReminderClass = React.component "Main" component
   where
   component this =
-    pure { state: { isJqueryLoaded: false, isJqueryUILoaded: false }, render: render <$> React.getState this, componentDidMount: didMount this }
+    pure {
+            state: { isModalOpen: false },
+            render: render <$> React.getState this
+         }
+
     where
-      didMount _this = do
-        -- When our component is mounted, fetch & insert jQuery, jQueryUI Dialog
-        -- ... and their corresponding Purescript modules
-        window <- DOM.window
-        document <- DOM.document window
-        head <- Helpers.documentHead $ DOM.toDocument document
+      toggleModal = do
+        { isModalOpen } <- React.getState this
+        let newModalState = not isModalOpen
+        React.setState this { isModalOpen: newModalState }
         
-        jQueryScript <- DOM.createElement "script" $ DOM.toDocument document
-        _ <- DOM.setAttribute "id" "jquery-script" jQueryScript
-        --_ <- DOM.setAttribute "src" "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js" jQueryScript
-        --_ <- DOM.setAttribute "async" "true" jQueryScript
-        --_ <- Helpers.setOnLoad jQueryScript $ React.setState _this { isJqueryLoaded: true } -- Update the state once jQuery is loaded
+      render state = do
+                 DOM.div'
+                   [
+                     DOM.span
+                     [
+                       Props.onClick (\evt -> do
+                                         toggleModal),
+                       Props.unsafeMkProps "data-toggle" "modal",
+                       Props.unsafeMkProps "data-target" "#setreminderModal"
+                     ] -- To do: Display a modal (bootstrap)
+                     [ DOM.text "Set reminder" ],
 
-        jQueryUIScript <- DOM.createElement "script" $ DOM.toDocument document
-        _ <- DOM.setAttribute "id" "jquery-ui-script" jQueryUIScript
-        --_ <- DOM.setAttribute "src" "https://code.jquery.com/ui/1.12.1/jquery-ui.min.js" jQueryUIScript
-        --_ <- DOM.setAttribute "async" "true" jQueryUIScript
-        --_ <- Helpers.setOnLoad jQueryUIScript $ React.setState _this { isJqueryUILoaded: true } -- Update the state once jQueryUI is loaded
-      
-        _ <- DOM.appendChild (DOM.toNode jQueryScript) (DOM.toNode head)
-        _ <- DOM.appendChild (DOM.toNode jQueryUIScript) (DOM.toNode head)
-
-        pure unit
-        
-                
-      render
-        {
-          isJqueryLoaded,
-          isJqueryUILoaded
-        } =
-          DOM.div
-          [
-            Props.onClick onClick --,
-            --if (isJqueryLoaded && isJqueryUILoaded) then Props.style {"pointerEvents": "auto"}
-            --             else Props.style {"pointerEvents": "none"}
-          ]
-  
-          [
-            DOM.img
-            [
-              Props.src "chrome-extension://gjjpophepkbhejnglcmkdnncmaanojkf/images/iconspent.png",
-              Props.className "agile-spent-icon-cardtimer"
-            ],
-            DOM.text "Set a reminder",
-            DOM.dialog
-            [
-              Props._id "dialog-form",
-              Props.hidden true,
-              Props.title "Create new user"
-            ]
-            
-            [
-              DOM.form'
-              [
-                DOM.fieldset'
-                [
-                  DOM.label' [DOM.button' [DOM.text "Login with Trello"] ],
-                  DOM.label'
-                  [
-                    DOM.text "Choose your plan",
-                    DOM.select'
-                    [
-                      DOM.option'
-                      [
-                        DOM.text "Free (1 person, 5 reminders a week), Free"
-                      ],
-                      DOM.option'
-                      [
-                        DOM.text "Solo (1 person, unlimited reminders), $2.99 / month"
-                      ],
-                      DOM.option'
-                      [
-                        DOM.text "Team (5 people, unlimited reminders), $9.99 / month"
-                      ]
-                    ]
-                  ]
-                ]
-              ]
-            ]
-          ]
-
-      onClick evt = do
-        window <- DOM.window
-        document <- DOM.document window
-        mDialog <- Helpers.getElementById "dialog-form" $ DOM.toDocument document
-        case mDialog of
-          Nothing -> pure unit
-          Just dialog -> do
-            Helpers.showModal dialog
-            pure unit
+                     React.createLeafElement modalClass { show: React.getState this } -- ToDO: Create the modalClass and make this work!
+                   ]
+                 
