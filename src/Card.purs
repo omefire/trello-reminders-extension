@@ -147,22 +147,21 @@ setReminderClass = React.component "Main" component
   where
   component this =
     pure {
-            render: render <$> React.getState this
+            render: render
          }
 
     where
-      render state = do
-                 DOM.div'
-                   [
-                     DOM.span
-                     [
-                       --Props.onClick $ \evt -> do
-                       --   Helpers.alert "test!",
-                       Props.unsafeMkProps "data-toggle" "modal",
-                       Props.unsafeMkProps "data-target" "#setreminderModal"
-                     ]
-                     [ DOM.text "Set reminder" ],
-
-                     React.createLeafElement modalClass { }
-                   ]
-                 
+      render = do
+        pure $
+          DOM.div'
+          [
+            DOM.span
+            [
+              Props.unsafeMkProps "data-toggle" "modal",
+              Props.unsafeMkProps "data-target" "#setreminderModal"
+            ]
+            [ DOM.text "Set reminder" ],
+            
+            React.createLeafElement modalClass { }
+          ]
+          
