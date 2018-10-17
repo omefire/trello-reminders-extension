@@ -1,5 +1,5 @@
 module Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, URL, alert, getElementById, showDialog, documentHead, setOnLoad,
-                     JQuery, JQueryDialog, jqry, dialog, showModal, show) where
+                     JQuery, JQueryDialog, jqry, dialog, showModal, show, setTimeout, setInterval) where
 
 import Prelude
 
@@ -59,3 +59,11 @@ foreign import dialog :: forall r. JQuery -> Effect JQueryDialog
 
 foreign import showModal :: DOM.Element -> Effect Unit
 foreign import show :: DOM.Element -> Effect Unit
+
+foreign import _setTimeout :: Effect Unit -> Int -> Effect Unit
+setTimeout :: Int -> Effect Unit -> Effect Unit
+setTimeout ms fn  = _setTimeout fn ms
+
+foreign import _setInterval :: Effect Unit -> Int -> Effect Unit
+setInterval :: Int -> Effect Unit -> Effect Unit
+setInterval ms fn  = _setInterval fn ms

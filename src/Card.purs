@@ -11,7 +11,7 @@ import Data.Array (head)
 import Effect (Effect)
 import Effect.Timer (setInterval, setTimeout)
 import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, showDialog, documentHead, setOnLoad,
-                     jqry, dialog, JQuery, JQueryDialog, showModal, show) as Helpers
+                     jqry, dialog, JQuery, JQueryDialog, showModal, show, setTimeout, setInterval) as Helpers
 import Partial.Unsafe (unsafePartial)
 import React as React
 import React.DOM (text, a, div, div', h5, span, span', img, form', fieldset', label', dialog, button', button, select', option') as DOM
@@ -74,7 +74,7 @@ tryDisplay = do
       -- Add a new child before the first child of secondChildofotheractions
       pointOfInsertion <- MaybeT $ DOM.firstChild secondChildOfOtherActions
       _ <- lift $ DOM.insertBefore (unsafeCoerce trelloRemindersBtnDivElt) pointOfInsertion secondChildOfOtherActions
-      _ <- lift $ ReactDOM.render (React.createLeafElement setReminderClass { }) trelloRemindersBtnDivElt
+      _ <- lift $ ReactDOM.render (React.createLeafElement setReminderClass { htmlDoc: document }) trelloRemindersBtnDivElt
       pure unit
 
 
@@ -142,7 +142,7 @@ modalClass = React.component "Modal" component
                   ]
               ]
 
-setReminderClass :: React.ReactClass { }
+setReminderClass :: React.ReactClass { htmlDoc :: DOM.Document }
 setReminderClass = React.component "Main" component
   where
   component this =
@@ -157,10 +157,18 @@ setReminderClass = React.component "Main" component
           [
             DOM.span
             [
+              Props.onClick $ \evt -> do
+                 { htmlDoc: doc } <- React.getProps this
+                 Helpers.setInterval 500 $ do
+                   mElt <- Helpers.getFirstElementByClassName "modal-backdrop" doc
+                   case mElt of
+                     Nothing -> pure unit
+                     Just elt -> DOM.setAttribute "class" "fade in" elt
+                 ,
               Props.unsafeMkProps "data-toggle" "modal",
               Props.unsafeMkProps "data-target" "#setreminderModal"
             ]
-            [ DOM.text "Set reminder" ],
+            [ DOM.text "Set a reminder" ],
             
             React.createLeafElement modalClass { }
           ]
