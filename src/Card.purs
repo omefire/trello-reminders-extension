@@ -14,7 +14,7 @@ import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, 
                      jqry, dialog, JQuery, JQueryDialog, showModal, show) as Helpers
 import Partial.Unsafe (unsafePartial)
 import React as React
-import React.DOM (text, a, div, div', span, span', img, form', fieldset', label', dialog, button', button, select', option') as DOM
+import React.DOM (text, a, div, div', h5, span, span', img, form', fieldset', label', dialog, button', button, select', option') as DOM
 import React.DOM.Props as Props
 import ReactDOM as ReactDOM
 import Unsafe.Coerce (unsafeCoerce)
@@ -78,35 +78,91 @@ tryDisplay = do
       pure unit
 
 
+modalClass :: React.ReactClass {}
+modalClass = React.component "Modal" component
+  where
+    component this =
+      pure {
+             state: {},
+             render: render $ React.getState this
+           }
+      where
+        render state = do
+          pure $
+            DOM.div
+              [ Props.className "modal fade", Props._id "setreminderModal", Props.role "dialog", Props.unsafeMkProps "aria-labelledby" "setReminderCenterTitle", Props.unsafeMkProps "aria-hidden" "true" ]
+              [
+                DOM.div
+                  [ Props.className "modal-dialog modal-dialog-centered", Props.role "document" ]
+                  [
+                    DOM.div
+                      [ Props.className "modal-content" ]
+                      [
+                        DOM.div
+                          [ Props.className "modal-header" ]
+                          [
+                            DOM.h5
+                              [ Props.className "modal-title", Props._id "setReminderModalLongTitle" ]
+                              [
+                                DOM.text "Modal title"
+                              ],
+                            DOM.button
+                              [ Props._type "button", Props.className "close", Props.unsafeMkProps "data-dismiss" "modal", Props.unsafeMkProps "aria-label" "Close" ]
+                              [
+                                DOM.span
+                                  [ Props.unsafeMkProps "aria-hidden" "true" ]
+                                  [
+                                    DOM.text "x"
+                                  ]
+                              ]
+                          ],
+                        
+                        DOM.div
+                          [ Props.className "modal-body" ]
+                          [
+                            DOM.text "..."
+                          ],
 
+                        DOM.div
+                          [ Props.className "modal-footer" ]
+                          [
+                            DOM.button
+                              [ Props._type "button", Props.className "btn btn-secondary", Props.unsafeMkProps "data-dismiss" "modal" ]
+                              [
+                                DOM.text "Close"
+                              ],
+                            
+                            DOM.button
+                              [ Props._type "button", Props.className "btn btn-primary", Props.unsafeMkProps "data-dismiss" "modal" ]
+                              [
+                                DOM.text "Save changes"
+                              ]
+                          ]
+                      ]
+                  ]
+              ]
 
 setReminderClass :: React.ReactClass { }
 setReminderClass = React.component "Main" component
   where
   component this =
     pure {
-            state: { isModalOpen: false },
             render: render <$> React.getState this
          }
 
     where
-      toggleModal = do
-        { isModalOpen } <- React.getState this
-        let newModalState = not isModalOpen
-        React.setState this { isModalOpen: newModalState }
-        
       render state = do
                  DOM.div'
                    [
                      DOM.span
                      [
-                       Props.onClick (\evt -> do
-                                         toggleModal),
+                       --Props.onClick $ \evt -> do
+                       --   Helpers.alert "test!",
                        Props.unsafeMkProps "data-toggle" "modal",
                        Props.unsafeMkProps "data-target" "#setreminderModal"
-                     ] -- To do: Display a modal (bootstrap)
+                     ]
                      [ DOM.text "Set reminder" ],
 
-                     React.createLeafElement modalClass { show: React.getState this } -- ToDO: Create the modalClass and make this work!
+                     React.createLeafElement modalClass { }
                    ]
                  
