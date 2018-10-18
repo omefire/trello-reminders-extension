@@ -14,7 +14,7 @@ import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, 
                      jqry, dialog, JQuery, JQueryDialog, showModal, show, setTimeout, setInterval) as Helpers
 import Partial.Unsafe (unsafePartial)
 import React as React
-import React.DOM (text, a, div, div', h5, span, span', img, form', fieldset', label', dialog, button', button, select', option') as DOM
+import React.DOM (text, a, div, div', h5, span, span', img, form', fieldset', label', dialog, button', button, select', option', label, input) as DOM
 import React.DOM.Props as Props
 import ReactDOM as ReactDOM
 import Unsafe.Coerce (unsafeCoerce)
@@ -102,25 +102,94 @@ modalClass = React.component "Modal" component
                           [ Props.className "modal-header" ]
                           [
                             DOM.h5
-                              [ Props.className "modal-title", Props._id "setReminderModalLongTitle" ]
+                              [ Props.className "modal-title h2", Props._id "setReminderModalLongTitle" ]
                               [
-                                DOM.text "Modal title"
-                              ],
-                            DOM.button
-                              [ Props._type "button", Props.className "close", Props.unsafeMkProps "data-dismiss" "modal", Props.unsafeMkProps "aria-label" "Close" ]
-                              [
-                                DOM.span
-                                  [ Props.unsafeMkProps "aria-hidden" "true" ]
-                                  [
-                                    DOM.text "x"
-                                  ]
+                                DOM.text "Create a reminder"
                               ]
                           ],
                         
                         DOM.div
                           [ Props.className "modal-body" ]
                           [
-                            DOM.text "..."
+                            DOM.form'
+                            [
+                              DOM.div
+                              [ Props.className "form-group" ]
+                              [
+                                DOM.label
+                                [
+                                  Props.unsafeMkProps "for" "name-text-input",
+                                  Props.className "col-form-label"
+                                ]
+                                [
+                                  DOM.text "Name: "
+                                ],
+
+                                DOM.div
+                                [ Props.className "" ]
+                                [
+                                  DOM.input
+                                  [
+                                    Props.className "form-control", Props._type "text", Props.placeholder "Enter your a name for the reminder",
+                                    Props._id "name-text-input", Props.style { "width": "100%" }
+                                  ]
+                                ]
+                              ],
+
+                              DOM.div
+                              [ Props.className "form-group" ]
+                              [
+                                DOM.label
+                                [
+                                  Props.unsafeMkProps "for" "description-text-input",
+                                  Props.className "col-2 col-form-label"
+                                ]
+                                [
+                                  DOM.text "Description: "
+                                ],
+
+                                DOM.div
+                                [ Props.className "col-10" ]
+                                [
+                                  DOM.input
+                                  [
+                                    Props.className "form-control", Props._type "text", Props.placeholder "Enter a description for the reminder",
+                                    Props._id "description-text-input", Props.style { "width": "100%" }
+                                  ]
+                                ]
+                              ],
+
+                              DOM.div
+                              [ Props.className "form-group" ]
+                              [
+                                DOM.label
+                                [
+                                  Props.unsafeMkProps "for" "emails-text-input",
+                                  Props.className "col-form-label"
+                                ]
+                                [
+                                  DOM.text "Emails: (Choose who you want to remember?)"
+                                ],
+
+                                DOM.div
+                                [ ]
+                                [
+                                   DOM.input
+                                   [
+                                     Props.className "form-control", Props._type "email", Props.placeholder "Enter an email address",
+                                     Props._id "email-text-input", Props.style { "float": "left", width: "83%" }
+                                   ],
+                                   
+                                   DOM.button
+                                   [
+                                     Props._type "button", Props.className "btn btn-primary",  Props.style { "margin": "0", "margin-left": "5px" }
+                                   ]
+                                   [
+                                     DOM.text "Add Email"
+                                   ]                                                     
+                                ]
+                              ]
+                            ]
                           ],
 
                         DOM.div
@@ -149,8 +218,13 @@ setReminderClass = React.component "Main" component
     pure {
             render: render
          }
-
     where
+      removeModalBackdrop doc = do
+        mElt <- Helpers.getFirstElementByClassName "modal-backdrop" doc
+        case mElt of
+          Nothing -> pure unit
+          Just elt -> DOM.setAttribute "class" "fade in" elt
+          
       render = do
         pure $
           DOM.div'
@@ -160,10 +234,7 @@ setReminderClass = React.component "Main" component
               Props.onClick $ \evt -> do
                  { htmlDoc: doc } <- React.getProps this
                  Helpers.setInterval 500 $ do
-                   mElt <- Helpers.getFirstElementByClassName "modal-backdrop" doc
-                   case mElt of
-                     Nothing -> pure unit
-                     Just elt -> DOM.setAttribute "class" "fade in" elt
+                   removeModalBackdrop doc
                  ,
               Props.unsafeMkProps "data-toggle" "modal",
               Props.unsafeMkProps "data-target" "#setreminderModal"
