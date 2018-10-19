@@ -14,7 +14,7 @@ import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, 
                      jqry, dialog, JQuery, JQueryDialog, showModal, show, setTimeout, setInterval) as Helpers
 import Partial.Unsafe (unsafePartial)
 import React as React
-import React.DOM (text, a, div, div', h5, span, span', img, form', fieldset', label', dialog, button', button, select', option', label, input) as DOM
+import React.DOM (text, a, div, div', h5, span, span', img, form', fieldset', label', dialog, button', button, select', option', label, input, ul, li) as DOM
 import React.DOM.Props as Props
 import ReactDOM as ReactDOM
 import Unsafe.Coerce (unsafeCoerce)
@@ -168,7 +168,7 @@ modalClass = React.component "Modal" component
                                   Props.className "col-form-label"
                                 ]
                                 [
-                                  DOM.text "Emails: (Choose who you want to remember?)"
+                                  DOM.text "Emails: (Who do you want to remind?)"
                                 ],
 
                                 DOM.div
@@ -179,14 +179,38 @@ modalClass = React.component "Modal" component
                                      Props.className "form-control", Props._type "email", Props.placeholder "Enter an email address",
                                      Props._id "email-text-input", Props.style { "float": "left", width: "83%" }
                                    ],
-                                   
+
                                    DOM.button
                                    [
                                      Props._type "button", Props.className "btn btn-primary",  Props.style { "margin": "0", "margin-left": "5px" }
                                    ]
                                    [
                                      DOM.text "Add Email"
-                                   ]                                                     
+                                   ]
+                                ],
+
+                                DOM.ul
+                                [
+                                  Props.className "list-group", Props.style { "clear": "both", "margin-left": "10px" }
+                                ]
+                                [
+                                  DOM.li
+                                  [
+                                    Props.className "list-group-item" --, Props.style { "border": "0px none", "padding": "5px" }
+                                  ]
+                                  [
+                                    DOM.span [ Props.className "btn btn-primary" ] [ DOM.text "omefire@gmail.com" ],
+                                    DOM.button [ Props.className "btn btn-danger" ] [ DOM.text "Remove Email"]
+                                  ],
+
+                                  DOM.li
+                                  [
+                                    Props.className "list-group-item" --, Props.style { "border": "0px none", "padding": "5px" }
+                                  ]
+                                  [
+                                    DOM.text "imefire@gmail.com",
+                                    DOM.button [ Props.className "btn btn-danger" ] [ DOM.text "Remove Email"]
+                                  ]
                                 ]
                               ]
                             ]
