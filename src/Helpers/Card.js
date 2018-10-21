@@ -111,3 +111,9 @@ exports._setInterval = function(fn) {
         return setInterval(fn, msecs);
     }
 }
+
+exports._flatpickr = function(selector) {
+    return function(config) {
+        flatpickr(selector, config);
+    }
+}

@@ -17,11 +17,13 @@
             ],
             "css": [
                 "/bootstrap/css/bootstrap.css",
-                "/bootstrap/css/bootstrap-theme.css"
+                "/bootstrap/css/bootstrap-theme.css",
+                "/flatpickr/flatpickr.min.css"
             ],
             "js": [
                 "/jquery/jquery.js",
                 "/bootstrap/js/bootstrap.js",
+                "/flatpickr/flatpickr.js",
                 "/index.js"
             ],
             "run_at": "document_end"

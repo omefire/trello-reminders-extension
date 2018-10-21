@@ -11,10 +11,10 @@ import Data.Array (head)
 import Effect (Effect)
 import Effect.Timer (setInterval, setTimeout)
 import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, showDialog, documentHead, setOnLoad,
-                     jqry, dialog, JQuery, JQueryDialog, showModal, show, setTimeout, setInterval) as Helpers
+                     jqry, dialog, JQuery, JQueryDialog, showModal, show, setTimeout, setInterval, flatpickr) as Helpers
 import Partial.Unsafe (unsafePartial)
 import React as React
-import React.DOM (text, a, div, div', h5, span, span', img, form', fieldset', label', dialog, button', button, select', option', label, input, ul, li) as DOM
+import React.DOM (text, a, div, div', h5, span, span', img, form', fieldset', label', dialog, button', button, select', option', label, input, ul, li, table, tbody, tr', td', tr) as DOM
 import React.DOM.Props as Props
 import ReactDOM as ReactDOM
 import Unsafe.Coerce (unsafeCoerce)
@@ -168,48 +168,72 @@ modalClass = React.component "Modal" component
                                   Props.className "col-form-label"
                                 ]
                                 [
-                                  DOM.text "Emails: (Who do you want to remind?)"
+                                  DOM.text "Emails: (Check the emails of people you want to remind)"
                                 ],
 
-                                DOM.div
-                                [ ]
+                                DOM.table
                                 [
-                                   DOM.input
-                                   [
-                                     Props.className "form-control", Props._type "email", Props.placeholder "Enter an email address",
-                                     Props._id "email-text-input", Props.style { "float": "left", width: "83%" }
-                                   ],
-
-                                   DOM.button
-                                   [
-                                     Props._type "button", Props.className "btn btn-primary",  Props.style { "margin": "0", "margin-left": "5px" }
-                                   ]
-                                   [
-                                     DOM.text "Add Email"
-                                   ]
-                                ],
-
-                                DOM.ul
-                                [
-                                  Props.className "list-group", Props.style { "clear": "both", "margin-left": "10px" }
+                                  Props.className "table table-striped table-dark",
+                                  Props.style { } -- margin-left: 15px; "width": "97%"
                                 ]
                                 [
-                                  DOM.li
+                                  DOM.tbody
+                                  []
                                   [
-                                    Props.className "list-group-item" --, Props.style { "border": "0px none", "padding": "5px" }
-                                  ]
-                                  [
-                                    DOM.span [ Props.className "btn btn-primary" ] [ DOM.text "omefire@gmail.com" ],
-                                    DOM.button [ Props.className "btn btn-danger" ] [ DOM.text "Remove Email"]
-                                  ],
+                                    DOM.tr
+                                    [ Props.style { "margin-left": "5px;" } ]
+                                    [
+                                      DOM.td'
+                                      [ 
+                                        DOM.input [ Props._type "checkbox", Props.name "vehicle1", Props.value "omefire@gmail.com" ],
+                                        DOM.text "omefire@gmail.com"
+                                      ]
+                                    ],
 
-                                  DOM.li
-                                  [
-                                    Props.className "list-group-item" --, Props.style { "border": "0px none", "padding": "5px" }
+                                    DOM.tr
+                                    [ Props.style { "margin-left": "5px;" } ]
+                                    [
+                                      DOM.td'
+                                      [ 
+                                        DOM.input [ Props._type "checkbox", Props.name "vehicle1", Props.value "omefire@gmail.com" ],
+                                        DOM.text "imefire@gmail.com"
+                                      ]
+                                    ],
+
+                                    DOM.tr
+                                    [ Props.style { "margin-left": "5px;" } ]
+                                    [
+                                      DOM.td'
+                                      [ 
+                                        DOM.input [ Props._type "checkbox", Props.name "vehicle1", Props.value "omefire@gmail.com" ],
+                                        DOM.text "hamefire@gmail.com"
+                                      ]
+                                    ]
                                   ]
+                                ]
+                              ],
+
+
+                              DOM.div
+                              [ Props.className "form-group" ]
+                              [
+                                
+                                DOM.label
+                                [
+                                  Props.unsafeMkProps "for" "name-text-input",
+                                  Props.className "col-form-label"
+                                ]
+                                [
+                                  DOM.text "Date & Time: (Specify when you want to be reminded)"
+                                ],
+                                
+                                DOM.div
+                                [ Props.className "input-group date", Props.style { "width": "100%" } ]
+                                [
+                                  DOM.input
                                   [
-                                    DOM.text "imefire@gmail.com",
-                                    DOM.button [ Props.className "btn btn-danger" ] [ DOM.text "Remove Email"]
+                                    Props.className "form-control", Props._type "text", Props.placeholder "Pick a date & time",
+                                    Props._id "date-text-input", Props.style { "width": "100%" }
                                   ]
                                 ]
                               ]
@@ -248,7 +272,12 @@ setReminderClass = React.component "Main" component
         case mElt of
           Nothing -> pure unit
           Just elt -> DOM.setAttribute "class" "fade in" elt
-          
+
+      initializeCalendar :: Effect Unit
+      initializeCalendar = do
+        Helpers.flatpickr "#date-text-input" { "enableTime": "true" }
+        pure unit
+        
       render = do
         pure $
           DOM.div'
@@ -257,8 +286,9 @@ setReminderClass = React.component "Main" component
             [
               Props.onClick $ \evt -> do
                  { htmlDoc: doc } <- React.getProps this
-                 Helpers.setInterval 500 $ do
+                 Helpers.setTimeout 500 $ do -- TODO: Couldn't this fail? Should we just keep doing it until it succeeds and then stop?
                    removeModalBackdrop doc
+                   initializeCalendar
                  ,
               Props.unsafeMkProps "data-toggle" "modal",
               Props.unsafeMkProps "data-target" "#setreminderModal"
