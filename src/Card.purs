@@ -1,6 +1,7 @@
 module Main where -- Card where
 
 
+import Data.DateTime
 import Data.Maybe
 import Prelude
 
@@ -8,14 +9,15 @@ import Control.Monad.Maybe.Trans (runMaybeT, MaybeT(..))
 import Control.Monad.Trans.Class (lift)
 import Control.MonadZero (guard)
 import Data.Array (head)
+import Data.Function (flip)
 import Effect (Effect)
 import Effect.Timer (setInterval, setTimeout)
-import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, showDialog, documentHead, setOnLoad,
-                     jqry, dialog, JQuery, JQueryDialog, showModal, show, setTimeout, setInterval, flatpickr) as Helpers
+import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, showDialog, documentHead, setOnLoad, jqry, dialog, JQuery, JQueryDialog, showModal, show, setTimeout, setInterval, flatpickr) as Helpers
 import Partial.Unsafe (unsafePartial)
 import React as React
-import React.DOM (text, a, div, div', h5, span, span', img, form', fieldset', label', dialog, button', button, select', option', label, input, ul, li, table, tbody, tr', td', tr) as DOM
+import React.DOM (text, a, div, div', h5, span, span', img, form', form, fieldset', label', dialog, button', button, select', option', label, input, ul, li, p, table, tbody, tr', td', tr) as DOM
 import React.DOM.Props as Props
+import React.SyntheticEvent (SyntheticEvent_, SyntheticUIEvent', SyntheticEvent')
 import ReactDOM as ReactDOM
 import Unsafe.Coerce (unsafeCoerce)
 import Web.DOM.Document (Document, getElementsByClassName, createElement, url) as DOM
@@ -26,7 +28,6 @@ import Web.DOM.Node (firstChild, insertBefore, appendChild) as DOM
 import Web.HTML (window) as DOM
 import Web.HTML.HTMLDocument (toDocument, body) as DOM
 import Web.HTML.Window (document) as DOM
-import Data.DateTime
 
 main :: Effect Unit
 main = do
@@ -46,7 +47,7 @@ tryDisplay = do
     doesElementExist :: Maybe DOM.Element -> Maybe Boolean
     doesElementExist Nothing  = Just true
     doesElementExist (Just _) = Nothing
-    
+
     tryDisplayBtn :: String -> DOM.Document -> MaybeT Effect Unit
     tryDisplayBtn url document = do
 
@@ -55,9 +56,9 @@ tryDisplay = do
 
       -- Do NOT display button if we are not in the context of a Card (we check this by verifying the URL)
       _ <- MaybeT $ pure $ Helpers.getCardIdFromUrl url
-      
+
       otherActions <- MaybeT $ Helpers.getFirstElementByClassName "other-actions" document
-      
+
       trelloRemindersBtnDivElt <- lift $ DOM.createElement "a" document
       _ <- lift $ DOM.setAttribute "id" "trello-reminders-btn" trelloRemindersBtnDivElt
       _ <- lift $ DOM.setAttribute "class" "button-link" trelloRemindersBtnDivElt
@@ -78,22 +79,69 @@ tryDisplay = do
       pure unit
 
 
-modalClass :: React.ReactClass {}
+type FormErrors = { errors :: Array { fieldName :: String, errorMessage :: String } }
+
+formErrorsClass :: React.ReactClass FormErrors
+formErrorsClass = React.component "FormErrors" component
+  where
+    component this =
+      pure {
+             state: { },
+             render: render $ React.getProps this
+           }
+      where
+        render props = do
+          frmErrs <- props
+          pure $
+            DOM.div
+            [
+              Props.className "formErrors"
+            ]
+            $ (flip map) frmErrs.errors $ \err ->
+                 case err.errorMessage of
+                   "" -> DOM.text ""
+                   _ -> DOM.div
+                          [
+                            Props.className "error"
+                          ]
+                          [
+                            DOM.text $ err.fieldName <> err.errorMessage
+                          ]
+
+modalClass :: React.ReactClass { }
 modalClass = React.component "Modal" component
   where
     component this =
       pure {
-             state: {},
+             state: {
+                      name: "",
+                      description: "",
+                      emails: [],
+                      datetime: "",
+                      formErrors: { name: "" },
+                      nameValid: false,
+                      formValid: false
+                    },
              render: render $ React.getState this
            }
       where
         render state = do
+          { name } <- state
           pure $
             DOM.div
-              [ Props.className "modal fade", Props._id "setreminderModal", Props.role "dialog", Props.unsafeMkProps "aria-labelledby" "setReminderCenterTitle", Props.unsafeMkProps "aria-hidden" "true" ]
+              [
+                Props.className "modal fade",
+                Props._id "setreminderModal",
+                Props.role "dialog",
+                Props.unsafeMkProps "aria-labelledby" "setReminderCenterTitle",
+                Props.unsafeMkProps "aria-hidden" "true"
+              ]
               [
                 DOM.div
-                  [ Props.className "modal-dialog modal-dialog-centered", Props.role "document" ]
+                  [
+                    Props.className "modal-dialog modal-dialog-centered",
+                    Props.role "document"
+                  ]
                   [
                     DOM.div
                       [ Props.className "modal-content" ]
@@ -107,11 +155,17 @@ modalClass = React.component "Modal" component
                                 DOM.text "Create a reminder"
                               ]
                           ],
-                        
+
                         DOM.div
                           [ Props.className "modal-body" ]
                           [
-                            DOM.form'
+                            -- Display error messages
+                            React.createLeafElement formErrorsClass { errors: [ { fieldName: "Name", errorMessage: "Cannot be empty" } ] },
+                            DOM.form
+                            [
+                              Props.unsafeMkProps "novalidate" "",
+                              Props.className "needs-validation was-validated"
+                            ]
                             [
                               DOM.div
                               [ Props.className "form-group" ]
@@ -125,14 +179,27 @@ modalClass = React.component "Modal" component
                                   DOM.text "Name: "
                                 ],
 
-                                DOM.div
-                                [ Props.className "" ]
+                                DOM.input
                                 [
-                                  DOM.input
-                                  [
-                                    Props.className "form-control", Props._type "text", Props.placeholder "Enter your a name for the reminder",
-                                    Props._id "name-text-input", Props.style { "width": "100%" }
-                                  ]
+                                  Props.className "form-control",
+                                  Props._type "text",
+                                  Props.placeholder "Enter your a name for the reminder",
+                                  Props.value name,
+
+                                  Props.onChange $ \ evt -> do
+                                    let value = (unsafeCoerce evt).target.value
+                                    React.setState this { name: value },
+
+                                  Props._id "name-text-input",
+                                  Props.style { "width": "100%" }
+                                ],
+
+                                DOM.div
+                                [
+                                  Props.className "invalid-feedback"
+                                ]
+                                [
+                                  DOM.text "Name cannot be empty"
                                 ]
                               ],
 
@@ -184,7 +251,7 @@ modalClass = React.component "Modal" component
                                     [ Props.style { "margin-left": "5px;" } ]
                                     [
                                       DOM.td'
-                                      [ 
+                                      [
                                         DOM.input [ Props._type "checkbox", Props.name "vehicle1", Props.value "omefire@gmail.com" ],
                                         DOM.text "omefire@gmail.com"
                                       ]
@@ -194,7 +261,7 @@ modalClass = React.component "Modal" component
                                     [ Props.style { "margin-left": "5px;" } ]
                                     [
                                       DOM.td'
-                                      [ 
+                                      [
                                         DOM.input [ Props._type "checkbox", Props.name "vehicle1", Props.value "omefire@gmail.com" ],
                                         DOM.text "imefire@gmail.com"
                                       ]
@@ -204,7 +271,7 @@ modalClass = React.component "Modal" component
                                     [ Props.style { "margin-left": "5px;" } ]
                                     [
                                       DOM.td'
-                                      [ 
+                                      [
                                         DOM.input [ Props._type "checkbox", Props.name "vehicle1", Props.value "omefire@gmail.com" ],
                                         DOM.text "hamefire@gmail.com"
                                       ]
@@ -217,7 +284,6 @@ modalClass = React.component "Modal" component
                               DOM.div
                               [ Props.className "form-group" ]
                               [
-                                
                                 DOM.label
                                 [
                                   Props.unsafeMkProps "for" "name-text-input",
@@ -226,7 +292,7 @@ modalClass = React.component "Modal" component
                                 [
                                   DOM.text "Date & Time: (Specify when you want to be reminded)"
                                 ],
-                                
+
                                 DOM.div
                                 [ Props.className "input-group date", Props.style { "width": "100%" } ]
                                 [
@@ -248,7 +314,7 @@ modalClass = React.component "Modal" component
                               [
                                 DOM.text "Close"
                               ],
-                            
+
                             DOM.button
                               [ Props._type "button", Props.className "btn btn-primary", Props.unsafeMkProps "data-dismiss" "modal" ]
                               [
@@ -277,7 +343,7 @@ setReminderClass = React.component "Main" component
       initializeCalendar = do
         Helpers.flatpickr "#date-text-input" { "enableTime": "true" }
         pure unit
-        
+
       render = do
         pure $
           DOM.div'
@@ -294,7 +360,7 @@ setReminderClass = React.component "Main" component
               Props.unsafeMkProps "data-target" "#setreminderModal"
             ]
             [ DOM.text "Set a reminder" ],
-            
+
             React.createLeafElement modalClass { }
           ]
-          
+
