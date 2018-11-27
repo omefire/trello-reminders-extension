@@ -8,7 +8,7 @@ import Prelude
 import Control.Monad.Maybe.Trans (runMaybeT, MaybeT(..))
 import Control.Monad.Trans.Class (lift)
 import Control.MonadZero (guard)
-import Data.Array (head)
+import Data.Array (head, take, filter, (:))
 import Data.Function (flip)
 import Effect (Effect)
 import Effect.Timer (setInterval, setTimeout)
@@ -28,6 +28,7 @@ import Web.DOM.Node (firstChild, insertBefore, appendChild) as DOM
 import Web.HTML (window) as DOM
 import Web.HTML.HTMLDocument (toDocument, body) as DOM
 import Web.HTML.Window (document) as DOM
+import Data.String.Common (trim, null) as String
 
 main :: Effect Unit
 main = do
@@ -97,15 +98,15 @@ formErrorsClass = React.component "FormErrors" component
             [
               Props.className "formErrors"
             ]
-            $ (flip map) frmErrs.errors $ \err ->
+            $ (flip map) (take 3 frmErrs.errors) $ \err ->
                  case err.errorMessage of
                    "" -> DOM.text ""
-                   _ -> DOM.div
+                   _ -> DOM.li
                           [
                             Props.className "error"
                           ]
                           [
-                            DOM.text $ err.fieldName <> err.errorMessage
+                            DOM.text $ err.errorMessage
                           ]
 
 modalClass :: React.ReactClass { }
@@ -118,15 +119,16 @@ modalClass = React.component "Modal" component
                       description: "",
                       emails: [],
                       datetime: "",
-                      formErrors: { name: "" },
-                      nameValid: false,
-                      formValid: false
+                      formErrors: { errors: [] } :: FormErrors,
+                      isNameValid: false,
+                      isDescriptionValid: false,
+                      isFormValid: false
                     },
              render: render $ React.getState this
            }
       where
         render state = do
-          { name } <- state
+          { name, formErrors, isNameValid, isDescriptionValid } <- state
           pure $
             DOM.div
               [
@@ -160,7 +162,7 @@ modalClass = React.component "Modal" component
                           [ Props.className "modal-body" ]
                           [
                             -- Display error messages
-                            React.createLeafElement formErrorsClass { errors: [ { fieldName: "Name", errorMessage: "Cannot be empty" } ] },
+                            React.createLeafElement formErrorsClass formErrors,
                             DOM.form
                             [
                               Props.unsafeMkProps "novalidate" "",
@@ -181,25 +183,27 @@ modalClass = React.component "Modal" component
 
                                 DOM.input
                                 [
-                                  Props.className "form-control",
+                                  Props._id "name-text-input",
+                                  Props.className $ (if isNameValid then "form-control" else "form-control is-invalid"),
                                   Props._type "text",
-                                  Props.placeholder "Enter your a name for the reminder",
+                                  Props.placeholder "Enter a name for the reminder",
                                   Props.value name,
 
                                   Props.onChange $ \ evt -> do
                                     let value = (unsafeCoerce evt).target.value
-                                    React.setState this { name: value },
+                                    React.setStateWithCallback this { name: value } $ do
+                                      let isNameEmpty = (String.null <<< String.trim) value
+                                      case isNameEmpty of
+                                         true -> do
+                                                  let newErrors' = (filter (\e -> e.fieldName /= "name") formErrors.errors)
+                                                  let newErrors = { fieldName: "name", errorMessage: "The 'name' field cannot be empty." } : newErrors'
+                                                  React.setState this { isNameValid: false, formErrors: { errors: newErrors } }
 
-                                  Props._id "name-text-input",
-                                  Props.style { "width": "100%" }
-                                ],
+                                         false -> do
+                                                   let newErrors = (filter (\e -> e.fieldName /= "name") formErrors.errors)
+                                                   React.setState this { isNameValid: true, formErrors: { errors: newErrors } }
 
-                                DOM.div
-                                [
-                                  Props.className "invalid-feedback"
-                                ]
-                                [
-                                  DOM.text "Name cannot be empty"
+                                  , Props.style { "width": "100%" }
                                 ]
                               ],
 
@@ -220,8 +224,27 @@ modalClass = React.component "Modal" component
                                 [
                                   DOM.input
                                   [
-                                    Props.className "form-control", Props._type "text", Props.placeholder "Enter a description for the reminder",
-                                    Props._id "description-text-input", Props.style { "width": "100%" }
+                                    Props.className "form-control",
+                                    Props.className $ (if isDescriptionValid then "form-control" else "form-control is-invalid"),
+                                    Props._type "text",
+                                    Props.placeholder "Enter a description for the reminder",
+                                    Props._id "description-text-input",
+                                    Props.style { "width": "100%" },
+
+                                    Props.onChange $ \ evt -> do
+                                        let value = (unsafeCoerce evt).target.value
+                                        React.setStateWithCallback this { description: value } $ do
+                                          let isDescriptionEmpty = (String.null <<< String.trim) value
+                                          case isDescriptionEmpty of
+                                               true -> do
+                                                        let newErrors' = (filter (\e -> e.fieldName /= "description") formErrors.errors)
+                                                        let newErrors = { fieldName: "description", errorMessage: "The 'description' field cannot be empty." } : newErrors'
+                                                        React.setState this { isDescriptionValid: false, formErrors: { errors: newErrors } }
+
+                                               false -> do
+                                                         let newErrors = (filter (\e -> e.fieldName /= "description") formErrors.errors)
+                                                         React.setState this { isDescriptionValid: true, formErrors: { errors: newErrors } }
+
                                   ]
                                 ]
                               ],
