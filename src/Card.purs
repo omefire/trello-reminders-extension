@@ -1,21 +1,23 @@
 module Main where -- Card where
 
 
+import Data.DateTime
 import Data.Maybe
 import Prelude
 
 import Control.Monad.Maybe.Trans (runMaybeT, MaybeT(..))
 import Control.Monad.Trans.Class (lift)
 import Control.MonadZero (guard)
-import Data.Array (head)
+import Data.Array (head, take, filter, (:))
+import Data.Function (flip)
 import Effect (Effect)
 import Effect.Timer (setInterval, setTimeout)
-import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, showDialog, documentHead, setOnLoad,
-                     jqry, dialog, JQuery, JQueryDialog, showModal, show) as Helpers
+import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, showDialog, documentHead, setOnLoad, jqry, dialog, JQuery, JQueryDialog, showModal, show, setTimeout, setInterval, flatpickr) as Helpers
 import Partial.Unsafe (unsafePartial)
 import React as React
-import React.DOM (text, a, div, span, img, form', fieldset', label', dialog, button', select', option') as DOM
+import React.DOM (text, a, div, div', h5, span, span', img, form', form, fieldset', label', dialog, button', button, select', option', label, input, ul, li, p, table, tbody, tr', td', tr) as DOM
 import React.DOM.Props as Props
+import React.SyntheticEvent (SyntheticEvent_, SyntheticUIEvent', SyntheticEvent')
 import ReactDOM as ReactDOM
 import Unsafe.Coerce (unsafeCoerce)
 import Web.DOM.Document (Document, getElementsByClassName, createElement, url) as DOM
@@ -26,6 +28,7 @@ import Web.DOM.Node (firstChild, insertBefore, appendChild) as DOM
 import Web.HTML (window) as DOM
 import Web.HTML.HTMLDocument (toDocument, body) as DOM
 import Web.HTML.Window (document) as DOM
+import Data.String.Common (trim, null) as String
 
 main :: Effect Unit
 main = do
@@ -45,7 +48,7 @@ tryDisplay = do
     doesElementExist :: Maybe DOM.Element -> Maybe Boolean
     doesElementExist Nothing  = Just true
     doesElementExist (Just _) = Nothing
-    
+
     tryDisplayBtn :: String -> DOM.Document -> MaybeT Effect Unit
     tryDisplayBtn url document = do
 
@@ -54,9 +57,9 @@ tryDisplay = do
 
       -- Do NOT display button if we are not in the context of a Card (we check this by verifying the URL)
       _ <- MaybeT $ pure $ Helpers.getCardIdFromUrl url
-      
+
       otherActions <- MaybeT $ Helpers.getFirstElementByClassName "other-actions" document
-      
+
       trelloRemindersBtnDivElt <- lift $ DOM.createElement "a" document
       _ <- lift $ DOM.setAttribute "id" "trello-reminders-btn" trelloRemindersBtnDivElt
       _ <- lift $ DOM.setAttribute "class" "button-link" trelloRemindersBtnDivElt
@@ -73,103 +76,314 @@ tryDisplay = do
       -- Add a new child before the first child of secondChildofotheractions
       pointOfInsertion <- MaybeT $ DOM.firstChild secondChildOfOtherActions
       _ <- lift $ DOM.insertBefore (unsafeCoerce trelloRemindersBtnDivElt) pointOfInsertion secondChildOfOtherActions
-      _ <- lift $ ReactDOM.render (React.createLeafElement mainClass { }) trelloRemindersBtnDivElt
+      _ <- lift $ ReactDOM.render (React.createLeafElement setReminderClass { htmlDoc: document }) trelloRemindersBtnDivElt
       pure unit
 
 
-mainClass :: React.ReactClass { }
-mainClass = React.component "Main" component
+type FormErrors = { errors :: Array { fieldName :: String, errorMessage :: String } }
+
+formErrorsClass :: React.ReactClass FormErrors
+formErrorsClass = React.component "FormErrors" component
+  where
+    component this =
+      pure {
+             state: { },
+             render: render $ React.getProps this
+           }
+      where
+        render props = do
+          frmErrs <- props
+          pure $
+            DOM.div
+            [
+              Props.className "formErrors"
+            ]
+            $ (flip map) (take 3 frmErrs.errors) $ \err ->
+                 case err.errorMessage of
+                   "" -> DOM.text ""
+                   _ -> DOM.li
+                          [
+                            Props.className "error"
+                          ]
+                          [
+                            DOM.text $ err.errorMessage
+                          ]
+
+modalClass :: React.ReactClass { }
+modalClass = React.component "Modal" component
+  where
+    component this =
+      pure {
+             state: {
+                      name: "",
+                      description: "",
+                      emails: [],
+                      datetime: "",
+                      formErrors: { errors: [] } :: FormErrors,
+                      isNameValid: false,
+                      isDescriptionValid: false,
+                      isFormValid: false
+                    },
+             render: render $ React.getState this
+           }
+      where
+        render state = do
+          { name, formErrors, isNameValid, isDescriptionValid } <- state
+          pure $
+            DOM.div
+              [
+                Props.className "modal fade",
+                Props._id "setreminderModal",
+                Props.role "dialog",
+                Props.unsafeMkProps "aria-labelledby" "setReminderCenterTitle",
+                Props.unsafeMkProps "aria-hidden" "true"
+              ]
+              [
+                DOM.div
+                  [
+                    Props.className "modal-dialog modal-dialog-centered",
+                    Props.role "document"
+                  ]
+                  [
+                    DOM.div
+                      [ Props.className "modal-content" ]
+                      [
+                        DOM.div
+                          [ Props.className "modal-header" ]
+                          [
+                            DOM.h5
+                              [ Props.className "modal-title h2", Props._id "setReminderModalLongTitle" ]
+                              [
+                                DOM.text "Create a reminder"
+                              ]
+                          ],
+
+                        DOM.div
+                          [ Props.className "modal-body" ]
+                          [
+                            -- Display error messages
+                            React.createLeafElement formErrorsClass formErrors,
+                            DOM.form
+                            [
+                              Props.unsafeMkProps "novalidate" "",
+                              Props.className "needs-validation was-validated"
+                            ]
+                            [
+                              DOM.div
+                              [ Props.className "form-group" ]
+                              [
+                                DOM.label
+                                [
+                                  Props.unsafeMkProps "for" "name-text-input",
+                                  Props.className "col-form-label"
+                                ]
+                                [
+                                  DOM.text "Name: "
+                                ],
+
+                                DOM.input
+                                [
+                                  Props._id "name-text-input",
+                                  Props.className $ (if isNameValid then "form-control" else "form-control is-invalid"),
+                                  Props._type "text",
+                                  Props.placeholder "Enter a name for the reminder",
+                                  Props.value name,
+
+                                  Props.onChange $ \ evt -> do
+                                    let value = (unsafeCoerce evt).target.value
+                                    React.setStateWithCallback this { name: value } $ do
+                                      let isNameEmpty = (String.null <<< String.trim) value
+                                      case isNameEmpty of
+                                         true -> do
+                                                  let newErrors' = (filter (\e -> e.fieldName /= "name") formErrors.errors)
+                                                  let newErrors = { fieldName: "name", errorMessage: "The 'name' field cannot be empty." } : newErrors'
+                                                  React.setState this { isNameValid: false, formErrors: { errors: newErrors } }
+
+                                         false -> do
+                                                   let newErrors = (filter (\e -> e.fieldName /= "name") formErrors.errors)
+                                                   React.setState this { isNameValid: true, formErrors: { errors: newErrors } }
+
+                                  , Props.style { "width": "100%" }
+                                ]
+                              ],
+
+                              DOM.div
+                              [ Props.className "form-group" ]
+                              [
+                                DOM.label
+                                [
+                                  Props.unsafeMkProps "for" "description-text-input",
+                                  Props.className "col-2 col-form-label"
+                                ]
+                                [
+                                  DOM.text "Description: "
+                                ],
+
+                                DOM.div
+                                [ Props.className "col-10" ]
+                                [
+                                  DOM.input
+                                  [
+                                    Props.className "form-control",
+                                    Props.className $ (if isDescriptionValid then "form-control" else "form-control is-invalid"),
+                                    Props._type "text",
+                                    Props.placeholder "Enter a description for the reminder",
+                                    Props._id "description-text-input",
+                                    Props.style { "width": "100%" },
+
+                                    Props.onChange $ \ evt -> do
+                                        let value = (unsafeCoerce evt).target.value
+                                        React.setStateWithCallback this { description: value } $ do
+                                          let isDescriptionEmpty = (String.null <<< String.trim) value
+                                          case isDescriptionEmpty of
+                                               true -> do
+                                                        let newErrors' = (filter (\e -> e.fieldName /= "description") formErrors.errors)
+                                                        let newErrors = { fieldName: "description", errorMessage: "The 'description' field cannot be empty." } : newErrors'
+                                                        React.setState this { isDescriptionValid: false, formErrors: { errors: newErrors } }
+
+                                               false -> do
+                                                         let newErrors = (filter (\e -> e.fieldName /= "description") formErrors.errors)
+                                                         React.setState this { isDescriptionValid: true, formErrors: { errors: newErrors } }
+
+                                  ]
+                                ]
+                              ],
+
+                              DOM.div
+                              [ Props.className "form-group" ]
+                              [
+                                DOM.label
+                                [
+                                  Props.unsafeMkProps "for" "emails-text-input",
+                                  Props.className "col-form-label"
+                                ]
+                                [
+                                  DOM.text "Emails: (Check the emails of people you want to remind)"
+                                ],
+
+                                DOM.table
+                                [
+                                  Props.className "table table-striped table-dark",
+                                  Props.style { } -- margin-left: 15px; "width": "97%"
+                                ]
+                                [
+                                  DOM.tbody
+                                  []
+                                  [
+                                    DOM.tr
+                                    [ Props.style { "margin-left": "5px;" } ]
+                                    [
+                                      DOM.td'
+                                      [
+                                        DOM.input [ Props._type "checkbox", Props.name "vehicle1", Props.value "omefire@gmail.com" ],
+                                        DOM.text "omefire@gmail.com"
+                                      ]
+                                    ],
+
+                                    DOM.tr
+                                    [ Props.style { "margin-left": "5px;" } ]
+                                    [
+                                      DOM.td'
+                                      [
+                                        DOM.input [ Props._type "checkbox", Props.name "vehicle1", Props.value "omefire@gmail.com" ],
+                                        DOM.text "imefire@gmail.com"
+                                      ]
+                                    ],
+
+                                    DOM.tr
+                                    [ Props.style { "margin-left": "5px;" } ]
+                                    [
+                                      DOM.td'
+                                      [
+                                        DOM.input [ Props._type "checkbox", Props.name "vehicle1", Props.value "omefire@gmail.com" ],
+                                        DOM.text "hamefire@gmail.com"
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ],
+
+
+                              DOM.div
+                              [ Props.className "form-group" ]
+                              [
+                                DOM.label
+                                [
+                                  Props.unsafeMkProps "for" "name-text-input",
+                                  Props.className "col-form-label"
+                                ]
+                                [
+                                  DOM.text "Date & Time: (Specify when you want to be reminded)"
+                                ],
+
+                                DOM.div
+                                [ Props.className "input-group date", Props.style { "width": "100%" } ]
+                                [
+                                  DOM.input
+                                  [
+                                    Props.className "form-control", Props._type "text", Props.placeholder "Pick a date & time",
+                                    Props._id "date-text-input", Props.style { "width": "100%" }
+                                  ]
+                                ]
+                              ]
+                            ]
+                          ],
+
+                        DOM.div
+                          [ Props.className "modal-footer" ]
+                          [
+                            DOM.button
+                              [ Props._type "button", Props.className "btn btn-secondary", Props.unsafeMkProps "data-dismiss" "modal" ]
+                              [
+                                DOM.text "Close"
+                              ],
+
+                            DOM.button
+                              [ Props._type "button", Props.className "btn btn-primary", Props.unsafeMkProps "data-dismiss" "modal" ]
+                              [
+                                DOM.text "Save changes"
+                              ]
+                          ]
+                      ]
+                  ]
+              ]
+
+setReminderClass :: React.ReactClass { htmlDoc :: DOM.Document }
+setReminderClass = React.component "Main" component
   where
   component this =
-    pure { state: { isJqueryLoaded: false, isJqueryUILoaded: false }, render: render <$> React.getState this, componentDidMount: didMount this }
+    pure {
+            render: render
+         }
     where
-      didMount _this = do
-        -- When our component is mounted, fetch & insert jQuery, jQueryUI Dialog
-        -- ... and their corresponding Purescript modules
-        window <- DOM.window
-        document <- DOM.document window
-        head <- Helpers.documentHead $ DOM.toDocument document
-        
-        jQueryScript <- DOM.createElement "script" $ DOM.toDocument document
-        _ <- DOM.setAttribute "id" "jquery-script" jQueryScript
-        --_ <- DOM.setAttribute "src" "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js" jQueryScript
-        --_ <- DOM.setAttribute "async" "true" jQueryScript
-        --_ <- Helpers.setOnLoad jQueryScript $ React.setState _this { isJqueryLoaded: true } -- Update the state once jQuery is loaded
-
-        jQueryUIScript <- DOM.createElement "script" $ DOM.toDocument document
-        _ <- DOM.setAttribute "id" "jquery-ui-script" jQueryUIScript
-        --_ <- DOM.setAttribute "src" "https://code.jquery.com/ui/1.12.1/jquery-ui.min.js" jQueryUIScript
-        --_ <- DOM.setAttribute "async" "true" jQueryUIScript
-        --_ <- Helpers.setOnLoad jQueryUIScript $ React.setState _this { isJqueryUILoaded: true } -- Update the state once jQueryUI is loaded
-      
-        _ <- DOM.appendChild (DOM.toNode jQueryScript) (DOM.toNode head)
-        _ <- DOM.appendChild (DOM.toNode jQueryUIScript) (DOM.toNode head)
-
-        pure unit
-        
-                
-      render
-        {
-          isJqueryLoaded,
-          isJqueryUILoaded
-        } =
-          DOM.div
-          [
-            Props.onClick onClick --,
-            --if (isJqueryLoaded && isJqueryUILoaded) then Props.style {"pointerEvents": "auto"}
-            --             else Props.style {"pointerEvents": "none"}
-          ]
-  
-          [
-            DOM.img
-            [
-              Props.src "chrome-extension://gjjpophepkbhejnglcmkdnncmaanojkf/images/iconspent.png",
-              Props.className "agile-spent-icon-cardtimer"
-            ],
-            DOM.text "Set a reminder",
-            DOM.dialog
-            [
-              Props._id "dialog-form",
-              Props.hidden true,
-              Props.title "Create new user"
-            ]
-            
-            [
-              DOM.form'
-              [
-                DOM.fieldset'
-                [
-                  DOM.label' [DOM.button' [DOM.text "Login with Trello"] ],
-                  DOM.label'
-                  [
-                    DOM.text "Choose your plan",
-                    DOM.select'
-                    [
-                      DOM.option'
-                      [
-                        DOM.text "Free (1 person, 5 reminders a week), Free"
-                      ],
-                      DOM.option'
-                      [
-                        DOM.text "Solo (1 person, unlimited reminders), $2.99 / month"
-                      ],
-                      DOM.option'
-                      [
-                        DOM.text "Team (5 people, unlimited reminders), $9.99 / month"
-                      ]
-                    ]
-                  ]
-                ]
-              ]
-            ]
-          ]
-
-      onClick evt = do
-        window <- DOM.window
-        document <- DOM.document window
-        mDialog <- Helpers.getElementById "dialog-form" $ DOM.toDocument document
-        case mDialog of
+      removeModalBackdrop doc = do
+        mElt <- Helpers.getFirstElementByClassName "modal-backdrop" doc
+        case mElt of
           Nothing -> pure unit
-          Just dialog -> do
-            Helpers.showModal dialog
-            pure unit
+          Just elt -> DOM.setAttribute "class" "fade in" elt
+
+      initializeCalendar :: Effect Unit
+      initializeCalendar = do
+        Helpers.flatpickr "#date-text-input" { "enableTime": "true" }
+        pure unit
+
+      render = do
+        pure $
+          DOM.div'
+          [
+            DOM.span
+            [
+              Props.onClick $ \evt -> do
+                 { htmlDoc: doc } <- React.getProps this
+                 Helpers.setTimeout 500 $ do -- TODO: Couldn't this fail? Should we just keep doing it until it succeeds and then stop?
+                   removeModalBackdrop doc
+                   initializeCalendar
+                 ,
+              Props.unsafeMkProps "data-toggle" "modal",
+              Props.unsafeMkProps "data-target" "#setreminderModal"
+            ]
+            [ DOM.text "Set a reminder" ],
+
+            React.createLeafElement modalClass { }
+          ]
+

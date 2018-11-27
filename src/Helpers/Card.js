@@ -99,3 +99,21 @@ exports.show = function(dialog) {
 	return dialog.show();
     }
 }
+
+exports._setTimeout = function(fn) {
+    return function(msecs) {
+        return setTimeout(fn, msecs);
+    }
+}
+
+exports._setInterval = function(fn) {
+    return function(msecs) {
+        return setInterval(fn, msecs);
+    }
+}
+
+exports._flatpickr = function(selector) {
+    return function(config) {
+        flatpickr(selector, config);
+    }
+}
