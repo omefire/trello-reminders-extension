@@ -122,13 +122,14 @@ modalClass = React.component "Modal" component
                       formErrors: { errors: [] } :: FormErrors,
                       isNameValid: false,
                       isDescriptionValid: false,
+                      isAtLeastOneEmailSelected: false,
                       isFormValid: false
                     },
              render: render $ React.getState this
            }
       where
         render state = do
-          { name, formErrors, isNameValid, isDescriptionValid } <- state
+          { name, formErrors, isNameValid, isDescriptionValid, isAtLeastOneEmailSelected } <- state
           pure $
             DOM.div
               [
@@ -258,47 +259,48 @@ modalClass = React.component "Modal" component
                                   Props.className "col-form-label"
                                 ]
                                 [
-                                  DOM.text "Emails: (Check the emails of people you want to remind)"
+                                  DOM.text "Emails: (Select the emails of people you want to remind)"
+                                ],
+
+                                DOM.div
+                                [
+                                  Props.className "alert alert-danger",
+                                  Props.style { display: "none" } -- TODO: Display conditionally is at least one email address is not selected
+                                ]
+                                [
+                                  DOM.text "Please, select at least one email address"
                                 ],
 
                                 DOM.table
                                 [
                                   Props.className "table table-striped table-dark",
-                                  Props.style { } -- margin-left: 15px; "width": "97%"
+                                  Props.style { }
                                 ]
                                 [
                                   DOM.tbody
                                   []
                                   [
-                                    DOM.tr
-                                    [ Props.style { "margin-left": "5px;" } ]
-                                    [
-                                      DOM.td'
-                                      [
-                                        DOM.input [ Props._type "checkbox", Props.name "vehicle1", Props.value "omefire@gmail.com" ],
-                                        DOM.text "omefire@gmail.com"
-                                      ]
-                                    ],
+                                     ---
+                                     $ (flip map) emails $ \email ->
+                                       DOM.tr
+                                       [ Props.style { "margin-left": "5px;" } ]
+                                       [
+                                         DOM.td'
+                                         [
+                                           DOM.input
+                                           [
+                                             Props.key email.emailValue,
+                                             Props._type "checkbox",
+                                             Props.name email.emailValue,
+                                             Props.value email.emailValue,
 
-                                    DOM.tr
-                                    [ Props.style { "margin-left": "5px;" } ]
-                                    [
-                                      DOM.td'
-                                      [
-                                        DOM.input [ Props._type "checkbox", Props.name "vehicle1", Props.value "omefire@gmail.com" ],
-                                        DOM.text "imefire@gmail.com"
-                                      ]
-                                    ],
-
-                                    DOM.tr
-                                    [ Props.style { "margin-left": "5px;" } ]
-                                    [
-                                      DOM.td'
-                                      [
-                                        DOM.input [ Props._type "checkbox", Props.name "vehicle1", Props.value "omefire@gmail.com" ],
-                                        DOM.text "hamefire@gmail.com"
-                                      ]
-                                    ]
+                                             Props.onChange $ \evt -> do
+                                               Helpers.alert "test"
+                                           ],
+                                           DOM.text "omefire@gmail.com"
+                                         ]
+                                       ]
+                                     ---                                    
                                   ]
                                 ]
                               ],
