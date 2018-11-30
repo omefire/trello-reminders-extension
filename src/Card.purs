@@ -8,7 +8,7 @@ import Prelude
 import Control.Monad.Maybe.Trans (runMaybeT, MaybeT(..))
 import Control.Monad.Trans.Class (lift)
 import Control.MonadZero (guard)
-import Data.Array (head, take, filter, (:))
+import Data.Array (head, take, filter, (:), findIndex, updateAt)
 import Data.Function (flip)
 import Effect (Effect)
 import Effect.Timer (setInterval, setTimeout)
@@ -117,7 +117,7 @@ modalClass = React.component "Modal" component
              state: {
                       name: "",
                       description: "",
-                      emails: [],
+                      emails: [] :: Array ({ emailValue :: String, isChecked :: Boolean }),
                       datetime: "",
                       formErrors: { errors: [] } :: FormErrors,
                       isNameValid: false,
@@ -125,11 +125,17 @@ modalClass = React.component "Modal" component
                       isAtLeastOneEmailSelected: false,
                       isFormValid: false
                     },
+             componentDidMount: componentDidMount this,
              render: render $ React.getState this
            }
       where
+        componentDidMount this = do
+          -- TODO: Get from DB or Web service
+          let emailsT = [ { emailValue: "omefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false } ]
+          React.setState this { emails: emailsT }
+
         render state = do
-          { name, formErrors, isNameValid, isDescriptionValid, isAtLeastOneEmailSelected } <- state
+          { name, formErrors, isNameValid, isDescriptionValid, isAtLeastOneEmailSelected, emails } <- state
           pure $
             DOM.div
               [
@@ -265,7 +271,7 @@ modalClass = React.component "Modal" component
                                 DOM.div
                                 [
                                   Props.className "alert alert-danger",
-                                  Props.style { display: "none" } -- TODO: Display conditionally is at least one email address is not selected
+                                  Props.style { display: (if isAtLeastOneEmailSelected then "none" else "block") }
                                 ]
                                 [
                                   DOM.text "Please, select at least one email address"
@@ -279,29 +285,72 @@ modalClass = React.component "Modal" component
                                 [
                                   DOM.tbody
                                   []
-                                  [
-                                     ---
-                                     $ (flip map) emails $ \email ->
-                                       DOM.tr
-                                       [ Props.style { "margin-left": "5px;" } ]
-                                       [
-                                         DOM.td'
-                                         [
-                                           DOM.input
-                                           [
-                                             Props.key email.emailValue,
-                                             Props._type "checkbox",
-                                             Props.name email.emailValue,
-                                             Props.value email.emailValue,
+                                  $ (flip map) (emails) $ \ email ->
+                                        DOM.tr
+                                        [ Props.style { "margin-left": "5px;" } ]
+                                        [
+                                          DOM.td'
+                                          [
+                                            DOM.label
+                                            []
+                                            [
+                                              DOM.input
+                                              [
+                                                 --Props._id email.emailValue,
+                                                 --Props.name email.emailValue,
+                                                 Props._type "checkbox",
+                                                 --Props.value email.emailValue,
+                                                 --Props.checked true, --email.isChecked,
+                                                 Props.onClick \ evt -> do
+                                                   Helpers.alert "clicked",
 
-                                             Props.onChange $ \evt -> do
-                                               Helpers.alert "test"
-                                           ],
-                                           DOM.text "omefire@gmail.com"
-                                         ]
-                                       ]
-                                     ---                                    
-                                  ]
+                                                 Props.onChange $ \ evt -> do
+                                                    _  <- runMaybeT $ do
+                                                      -- _ <- lift $ Helpers.alert "test"
+                                                      idx <- MaybeT $ pure $ findIndex (\e -> e.emailValue == email.emailValue) emails
+                                                      arr <- MaybeT $ pure $ updateAt idx { emailValue: email.emailValue <> "RRR",
+                                                                             isChecked: (not email.isChecked) } emails
+                                                      pure $ React.setState this { emails: arr }
+
+                                                    pure unit
+
+                                                 -- Props.onChange $ \ evt -> do -- TODO: When clicked, alert!
+                                                 --   let value = (unsafeCoerce evt).target.value
+                                                 --   Helpers.alert "test"
+
+                                                 --   let mIdx = findIndex (\e -> e.emailValue == email.emailValue) emails
+                                                 --   case mIdx of
+                                                 --      Just idx -> do
+                                                 --                   let mArr = updateAt idx { emailValue: email.emailValue <> "RRR", isChecked: (not email.isChecked) } emails
+                                                 --                   case mArr of
+                                                 --                      Just arr -> React.setState this { emails: arr }
+                                                 --                      Nothing -> pure unit
+
+                                                 --      Nothing -> pure unit
+                                              ],
+                                              DOM.text email.emailValue
+                                            ]
+                                            -- DOM.label
+                                            -- [
+                                            --   Props.unsafeMkProps "for" "id1"
+                                            -- ]
+                                            -- [
+                                            --   DOM.text email.emailValue
+                                            -- ],
+
+                                            -- DOM.input
+                                            -- [
+                                            --   Props._id "id1",
+                                            --   Props.key email.emailValue,
+                                            --   Props._type "checkbox",
+                                            --   Props.name email.emailValue,
+                                            --   Props.value email.emailValue,
+
+                                            --   Props.onClick $ \evt -> do TODO: When clicked, alert!
+                                            --     Helpers.alert "test"
+                                            -- ]
+                                          ]
+                                        ]
                                 ]
                               ],
 
@@ -311,7 +360,7 @@ modalClass = React.component "Modal" component
                               [
                                 DOM.label
                                 [
-                                  Props.unsafeMkProps "for" "name-text-input",
+                                  Props.unsafeMkProps "for" "date-input",
                                   Props.className "col-form-label"
                                 ]
                                 [
@@ -324,7 +373,7 @@ modalClass = React.component "Modal" component
                                   DOM.input
                                   [
                                     Props.className "form-control", Props._type "text", Props.placeholder "Pick a date & time",
-                                    Props._id "date-text-input", Props.style { "width": "100%" }
+                                    Props._id "date-input", Props.style { "width": "100%" }
                                   ]
                                 ]
                               ]
