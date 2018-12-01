@@ -8,7 +8,7 @@ import Prelude
 import Control.Monad.Maybe.Trans (runMaybeT, MaybeT(..))
 import Control.Monad.Trans.Class (lift)
 import Control.MonadZero (guard)
-import Data.Array (head, take, filter, (:), findIndex, updateAt)
+import Data.Array (head, take, filter, (:), findIndex, updateAt, length)
 import Data.Function (flip)
 import Effect (Effect)
 import Effect.Timer (setInterval, setTimeout)
@@ -22,13 +22,15 @@ import ReactDOM as ReactDOM
 import Unsafe.Coerce (unsafeCoerce)
 import Web.DOM.Document (Document, getElementsByClassName, createElement, url) as DOM
 import Web.DOM.Element (setAttribute, toNode, Element) as DOM
-import Web.DOM.HTMLCollection (item, length)
+import Web.DOM.HTMLCollection (item)
 import Web.DOM.HTMLCollection (toArray)
 import Web.DOM.Node (firstChild, insertBefore, appendChild) as DOM
 import Web.HTML (window) as DOM
 import Web.HTML.HTMLDocument (toDocument, body) as DOM
 import Web.HTML.Window (document) as DOM
 import Data.String.Common (trim, null) as String
+
+import Effect.Console (log, logShow)
 
 main :: Effect Unit
 main = do
@@ -271,7 +273,7 @@ modalClass = React.component "Modal" component
                                 DOM.div
                                 [
                                   Props.className "alert alert-danger",
-                                  Props.style { display: (if isAtLeastOneEmailSelected then "none" else "block") }
+                                  Props.style { display: "none" } -- (if isAtLeastOneEmailSelected then "none" else "block")
                                 ]
                                 [
                                   DOM.text "Please, select at least one email address"
@@ -296,59 +298,36 @@ modalClass = React.component "Modal" component
                                             [
                                               DOM.input
                                               [
-                                                 --Props._id email.emailValue,
-                                                 --Props.name email.emailValue,
+                                                 Props._id email.emailValue,
+                                                 Props.name email.emailValue,
                                                  Props._type "checkbox",
-                                                 --Props.value email.emailValue,
-                                                 --Props.checked true, --email.isChecked,
-                                                 Props.onClick \ evt -> do
-                                                   Helpers.alert "clicked",
+                                                 Props.value email.emailValue,
+                                                 Props.checked email.isChecked,
 
-                                                 Props.onChange $ \ evt -> do
-                                                    _  <- runMaybeT $ do
-                                                      -- _ <- lift $ Helpers.alert "test"
-                                                      idx <- MaybeT $ pure $ findIndex (\e -> e.emailValue == email.emailValue) emails
-                                                      arr <- MaybeT $ pure $ updateAt idx { emailValue: email.emailValue <> "RRR",
-                                                                             isChecked: (not email.isChecked) } emails
-                                                      pure $ React.setState this { emails: arr }
+                                                 Props.onInput $ \ evt -> do
+                                                    let emails' = ((flip map) emails $ \ e ->
+                                                         if e.emailValue == email.emailValue then { emailValue: email.emailValue,
+                                                                                                    isChecked: (not e.isChecked) } else e
+                                                    )
+                                                    let isAtLeastOneEmailSelected' = ( length (filter (\em -> em.isChecked) emails') ) > 0
+                                                    let newErrors' = (filter (\e -> e.fieldName /= "emails") formErrors.errors)
 
-                                                    pure unit
-
-                                                 -- Props.onChange $ \ evt -> do -- TODO: When clicked, alert!
-                                                 --   let value = (unsafeCoerce evt).target.value
-                                                 --   Helpers.alert "test"
-
-                                                 --   let mIdx = findIndex (\e -> e.emailValue == email.emailValue) emails
-                                                 --   case mIdx of
-                                                 --      Just idx -> do
-                                                 --                   let mArr = updateAt idx { emailValue: email.emailValue <> "RRR", isChecked: (not email.isChecked) } emails
-                                                 --                   case mArr of
-                                                 --                      Just arr -> React.setState this { emails: arr }
-                                                 --                      Nothing -> pure unit
-
-                                                 --      Nothing -> pure unit
+                                                    case isAtLeastOneEmailSelected' of
+                                                       true -> do
+                                                                React.setState this { emails: emails',
+                                                                                      formErrors: { errors: newErrors' },
+                                                                                      isAtLeastOneEmailSelected: true }
+                                                       false -> do
+                                                                 let newErrors = {
+                                                                                   fieldName: "emails",
+                                                                                   errorMessage: "Please, select at least one email address"
+                                                                                 } : newErrors'
+                                                                 React.setState this { emails: emails',
+                                                                                       formErrors: { errors: newErrors },
+                                                                                       isAtLeastOneEmailSelected: false }
                                               ],
                                               DOM.text email.emailValue
                                             ]
-                                            -- DOM.label
-                                            -- [
-                                            --   Props.unsafeMkProps "for" "id1"
-                                            -- ]
-                                            -- [
-                                            --   DOM.text email.emailValue
-                                            -- ],
-
-                                            -- DOM.input
-                                            -- [
-                                            --   Props._id "id1",
-                                            --   Props.key email.emailValue,
-                                            --   Props._type "checkbox",
-                                            --   Props.name email.emailValue,
-                                            --   Props.value email.emailValue,
-
-                                            --   Props.onClick $ \evt -> do TODO: When clicked, alert!
-                                            --     Helpers.alert "test"
-                                            -- ]
                                           ]
                                         ]
                                 ]
