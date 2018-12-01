@@ -394,7 +394,7 @@ setReminderClass = React.component "Main" component
 
       initializeCalendar :: Effect Unit
       initializeCalendar = do
-        Helpers.flatpickr "#date-text-input" { "enableTime": "true" }
+        Helpers.flatpickr "#date-input" { "enableTime": "true" }
         pure unit
 
       render = do
