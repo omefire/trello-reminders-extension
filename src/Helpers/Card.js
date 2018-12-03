@@ -38,10 +38,6 @@ exports._getElementById = function(id) {
     }
 }
 
-exports._showDialog = function() {
-    alert("TTT");
-}
-
 exports._head = function(document) {
     return document.head;
 }
@@ -54,39 +50,6 @@ exports.setOnLoad = function(element) {
     }
 }
 
-//var jQuery = require('../../bower_components/jquery/dist/jquery');
-//var jQueryDialog = require('../../bower_components/jquery-ui/ui/widgets/dialog');
-
-//var JSDOM = require("../../node_modules/jsdom").JSDOM;
-//var window = new JSDOM();
-//var document = (new JSDOM('')).window;
-//global.document = document;
-
-//var $ = require('../../node_modules/jquery-ui/ui/jquery-1-7'); //require('jquery')(window);
-//var jQuery = $;
-
-//require('../../node_modules/jquery-ui/ui/widgets/dialog');
-
-/*var $ = require('jquery');
-var jQuery = $;
-window.jQuery = jQuery;
-window.$ = jQuery;
-//require('jquery-ui');*/
-//require('../../node_modules/jquery-ui/ui/jquery-1-7');
-//require('../../node_modules/jquery-ui/ui/widgets/dialog');
-//require('jquery-ui/ui/widgets/dialog');
-
-exports.jqry = function(selector) {
-    return function() {
-	return $(selector);
-    }
-}
-
-exports.dialog = function(elt) {
-    return function() {
-	return elt.dialog();
-    }
-}
 
 exports.showModal = function(dialog) {
     return function() {
@@ -115,19 +78,5 @@ exports._setInterval = function(fn) {
 exports._flatpickr = function(selector) {
     return function(config) {
         flatpickr(selector, config);
-    }
-}
-
-exports.getJQuery = function() {
-    return function() {
-        // var jQuery = require('../../bower_components/jquery/dist/jquery');
-        alert("$: " + JSON.stringify(window));
-        return $;
-    }
-}
-
-exports._datetimepicker = function(selector) {
-    return function() {
-        $(selector).datetimepicker();
     }
 }

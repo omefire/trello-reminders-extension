@@ -1,5 +1,5 @@
-module Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, URL, alert, getElementById, showDialog, documentHead, setOnLoad,
-                     JQuery, JQueryDialog, jqry, dialog, showModal, show, setTimeout, setInterval, flatpickr, getJQuery, datetimepicker) where
+module Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, URL, alert, getElementById, documentHead, setOnLoad,
+                     showModal, show, setTimeout, setInterval, flatpickr) where
 
 import Prelude
 
@@ -41,21 +41,11 @@ foreign import _getElementById :: String -> DOM.Document -> Nullable DOM.Element
 getElementById :: String -> DOM.Document -> Effect (Maybe DOM.Element)
 getElementById id document = pure $ toMaybe $ _getElementById id document
 
-foreign import _showDialog :: Effect Unit
-
-showDialog :: Effect Unit
-showDialog = _showDialog
-
 foreign import _head :: DOM.Document -> DOM.Element
 documentHead :: DOM.Document -> Effect DOM.Element
 documentHead document = pure $ _head document
 
 foreign import setOnLoad :: DOM.Element -> Effect Unit -> Effect Unit
-
-foreign import data JQuery :: Type
-foreign import data JQueryDialog :: Type
-foreign import jqry :: String -> Effect JQuery
-foreign import dialog :: forall r. JQuery -> Effect JQueryDialog
 
 foreign import showModal :: DOM.Element -> Effect Unit
 foreign import show :: DOM.Element -> Effect Unit
@@ -71,9 +61,3 @@ setInterval ms fn  = _setInterval fn ms
 foreign import _flatpickr :: forall r. String -> { | r } -> Effect Unit
 flatpickr :: forall r. String -> { | r } -> Effect Unit
 flatpickr selector config = _flatpickr selector config
-
-foreign import getJQuery :: Effect JQuery
-foreign import _datetimepicker :: String -> Effect Unit
-
-datetimepicker :: String -> Effect Unit
-datetimepicker selector = _datetimepicker selector

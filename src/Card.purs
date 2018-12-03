@@ -12,7 +12,7 @@ import Data.Array (head, take, filter, (:), findIndex, updateAt, length)
 import Data.Function (flip)
 import Effect (Effect)
 import Effect.Timer (setInterval, setTimeout)
-import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, showDialog, documentHead, setOnLoad, jqry, dialog, JQuery, JQueryDialog, showModal, show, setTimeout, setInterval, flatpickr, getJQuery, datetimepicker) as Helpers
+import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, documentHead, setOnLoad, showModal, show, setTimeout, setInterval, flatpickr) as Helpers
 import Partial.Unsafe (unsafePartial)
 import React as React
 import React.DOM (text, a, div, div', h5, span, i, span', img, form', form, fieldset', label', dialog, button', button, select', option', label, input, ul, li, p, table, tbody, tr', td', tr) as DOM
@@ -396,15 +396,6 @@ setReminderClass = React.component "Main" component
           Nothing -> pure unit
           Just elt -> DOM.setAttribute "class" "fade in" elt
 
-      -- initializeCalendar :: Effect Unit
-      -- initializeCalendar = do
-      --   Helpers.datetimepicker "#dateinput1"
-
-      -- initializeCalendar' :: Effect Unit
-      -- initializeCalendar' = do
-      --   Helpers.flatpickr "#date-input" { "enableTime": "true" }
-      --   pure unit
-
       render = do
         pure $
           DOM.div'
@@ -415,7 +406,6 @@ setReminderClass = React.component "Main" component
                  { htmlDoc: doc } <- React.getProps this
                  Helpers.setTimeout 500 $ do -- TODO: Couldn't this fail? Should we just keep doing it until it succeeds and then stop?
                    removeModalBackdrop doc
-                   -- initializeCalendar
                  ,
               Props.unsafeMkProps "data-toggle" "modal",
               Props.unsafeMkProps "data-target" "#setreminderModal"
