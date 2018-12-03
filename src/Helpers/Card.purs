@@ -1,5 +1,5 @@
 module Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, URL, alert, getElementById, showDialog, documentHead, setOnLoad,
-                     JQuery, JQueryDialog, jqry, dialog, showModal, show, setTimeout, setInterval, flatpickr) where
+                     JQuery, JQueryDialog, jqry, dialog, showModal, show, setTimeout, setInterval, flatpickr, getJQuery, datetimepicker) where
 
 import Prelude
 
@@ -32,7 +32,7 @@ foreign import _nextSibling :: DOM.Node -> Effect (Nullable DOM.Node)
 nextSibling :: DOM.Node -> Effect (Maybe DOM.Node)
 nextSibling node = do
   sibling <- _nextSibling node
-  pure $ toMaybe sibling 
+  pure $ toMaybe sibling
 
 foreign import alert :: forall a. a -> Effect Unit
 
@@ -71,3 +71,9 @@ setInterval ms fn  = _setInterval fn ms
 foreign import _flatpickr :: forall r. String -> { | r } -> Effect Unit
 flatpickr :: forall r. String -> { | r } -> Effect Unit
 flatpickr selector config = _flatpickr selector config
+
+foreign import getJQuery :: Effect JQuery
+foreign import _datetimepicker :: String -> Effect Unit
+
+datetimepicker :: String -> Effect Unit
+datetimepicker selector = _datetimepicker selector

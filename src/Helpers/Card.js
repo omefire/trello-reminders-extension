@@ -117,3 +117,17 @@ exports._flatpickr = function(selector) {
         flatpickr(selector, config);
     }
 }
+
+exports.getJQuery = function() {
+    return function() {
+        // var jQuery = require('../../bower_components/jquery/dist/jquery');
+        alert("$: " + JSON.stringify(window));
+        return $;
+    }
+}
+
+exports._datetimepicker = function(selector) {
+    return function() {
+        $(selector).datetimepicker();
+    }
+}

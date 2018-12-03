@@ -18,12 +18,15 @@
             "css": [
                 "/bootstrap/css/bootstrap.css",
                 "/bootstrap/css/bootstrap-theme.css",
+                "/bower_components/eonasdan-bootstrap-datetimepicker/build/css/bootstrap-datetimepicker.css",
                 "/flatpickr/flatpickr.min.css"
             ],
             "js": [
                 "/jquery/jquery.js",
+                "/bower_components/moment/min/moment.min.js",
                 "/bootstrap/js/bootstrap.js",
                 "/flatpickr/flatpickr.js",
+                "/bower_components/eonasdan-bootstrap-datetimepicker/build/js/bootstrap-datetimepicker.min.js",
                 "/index.js"
             ],
             "run_at": "document_end"

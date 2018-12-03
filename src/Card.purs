@@ -12,10 +12,10 @@ import Data.Array (head, take, filter, (:), findIndex, updateAt, length)
 import Data.Function (flip)
 import Effect (Effect)
 import Effect.Timer (setInterval, setTimeout)
-import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, showDialog, documentHead, setOnLoad, jqry, dialog, JQuery, JQueryDialog, showModal, show, setTimeout, setInterval, flatpickr) as Helpers
+import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, showDialog, documentHead, setOnLoad, jqry, dialog, JQuery, JQueryDialog, showModal, show, setTimeout, setInterval, flatpickr, getJQuery, datetimepicker) as Helpers
 import Partial.Unsafe (unsafePartial)
 import React as React
-import React.DOM (text, a, div, div', h5, span, span', img, form', form, fieldset', label', dialog, button', button, select', option', label, input, ul, li, p, table, tbody, tr', td', tr) as DOM
+import React.DOM (text, a, div, div', h5, span, i, span', img, form', form, fieldset', label', dialog, button', button, select', option', label, input, ul, li, p, table, tbody, tr', td', tr) as DOM
 import React.DOM.Props as Props
 import React.SyntheticEvent (SyntheticEvent_, SyntheticUIEvent', SyntheticEvent')
 import ReactDOM as ReactDOM
@@ -122,8 +122,8 @@ modalClass = React.component "Modal" component
                       emails: [] :: Array ({ emailValue :: String, isChecked :: Boolean }),
                       datetime: "",
                       formErrors: { errors: [] } :: FormErrors,
-                      isNameValid: false,
-                      isDescriptionValid: false,
+                      isNameValid: true,
+                      isDescriptionValid: true,
                       isAtLeastOneEmailSelected: false,
                       isFormValid: false
                     },
@@ -339,7 +339,7 @@ modalClass = React.component "Modal" component
                               [
                                 DOM.label
                                 [
-                                  Props.unsafeMkProps "for" "date-input",
+                                  Props.unsafeMkProps "for" "dateinput",
                                   Props.className "col-form-label"
                                 ]
                                 [
@@ -347,12 +347,16 @@ modalClass = React.component "Modal" component
                                 ],
 
                                 DOM.div
-                                [ Props.className "input-group date", Props.style { "width": "100%" } ]
+                                [ Props.style { "width": "100%" } ]
                                 [
                                   DOM.input
                                   [
-                                    Props.className "form-control", Props._type "text", Props.placeholder "Pick a date & time",
-                                    Props._id "date-input", Props.style { "width": "100%" }
+                                    Props._id "dateinput",
+                                    Props.className "form-control",
+                                    Props._type "datetime-local",
+                                    Props.placeholder "Pick a date & time",
+                                    Props.style { "width": "100%" },
+                                    Props.unsafeMkProps "data-format" "MM/dd/yyy hh:mm:ss"
                                   ]
                                 ]
                               ]
@@ -392,10 +396,14 @@ setReminderClass = React.component "Main" component
           Nothing -> pure unit
           Just elt -> DOM.setAttribute "class" "fade in" elt
 
-      initializeCalendar :: Effect Unit
-      initializeCalendar = do
-        Helpers.flatpickr "#date-input" { "enableTime": "true" }
-        pure unit
+      -- initializeCalendar :: Effect Unit
+      -- initializeCalendar = do
+      --   Helpers.datetimepicker "#dateinput1"
+
+      -- initializeCalendar' :: Effect Unit
+      -- initializeCalendar' = do
+      --   Helpers.flatpickr "#date-input" { "enableTime": "true" }
+      --   pure unit
 
       render = do
         pure $
@@ -407,7 +415,7 @@ setReminderClass = React.component "Main" component
                  { htmlDoc: doc } <- React.getProps this
                  Helpers.setTimeout 500 $ do -- TODO: Couldn't this fail? Should we just keep doing it until it succeeds and then stop?
                    removeModalBackdrop doc
-                   initializeCalendar
+                   -- initializeCalendar
                  ,
               Props.unsafeMkProps "data-toggle" "modal",
               Props.unsafeMkProps "data-target" "#setreminderModal"
