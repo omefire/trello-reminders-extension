@@ -8,11 +8,11 @@ import Prelude
 import Control.Monad.Maybe.Trans (runMaybeT, MaybeT(..))
 import Control.Monad.Trans.Class (lift)
 import Control.MonadZero (guard)
-import Data.Array (head, take, filter, (:), findIndex, updateAt, length)
+import Data.Array (head, take, filter, (:), findIndex, updateAt, length, (!!))
 import Data.Function (flip)
 import Effect (Effect)
 import Effect.Timer (setInterval, setTimeout)
-import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, documentHead, setOnLoad, showModal, show, setTimeout, setInterval, flatpickr) as Helpers
+import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, documentHead, setOnLoad, showModal, show, setTimeout, setInterval, flatpickr, getElementsByClassName) as Helpers
 import Partial.Unsafe (unsafePartial)
 import React as React
 import React.DOM (text, a, div, div', h5, span, i, span', img, form', form, fieldset', label', dialog, button', button, select', option', label, input, ul, li, p, table, tbody, tr', td', tr) as DOM
@@ -24,7 +24,8 @@ import Web.DOM.Document (Document, getElementsByClassName, createElement, url) a
 import Web.DOM.Element (setAttribute, toNode, Element) as DOM
 import Web.DOM.HTMLCollection (item)
 import Web.DOM.HTMLCollection (toArray)
-import Web.DOM.Node (firstChild, insertBefore, appendChild) as DOM
+import Web.DOM.NodeList (toArray) as NL
+import Web.DOM.Node (firstChild, lastChild, insertBefore, appendChild, childNodes) as DOM
 import Web.HTML (window) as DOM
 import Web.HTML.HTMLDocument (toDocument, body) as DOM
 import Web.HTML.Window (document) as DOM
@@ -60,24 +61,28 @@ tryDisplay = do
       -- Do NOT display button if we are not in the context of a Card (we check this by verifying the URL)
       _ <- MaybeT $ pure $ Helpers.getCardIdFromUrl url
 
-      otherActions <- MaybeT $ Helpers.getFirstElementByClassName "other-actions" document
+      -- Process:
+      -- 1- Get the element with class 'window-sidebar'
+      -- 2- Get the last child of 'window-sidebar': 'window-module u-clearfix'
+      -- 3- Get the child element of 'window-module u-clearfix' with class 'u-clearfix': 'u-clearfix'
+      -- 4- Within 'u-clearfix', create a new element: '<a class="button-link" ...'
+
+      windowSidebar <- MaybeT $ Helpers.getFirstElementByClassName "window-sidebar" document
+      lastChildOfWindowSidebar <- MaybeT $ DOM.lastChild (unsafeCoerce windowSidebar)
+      childrenOfLastChildOfWindowSidebar_ <- lift $ DOM.childNodes lastChildOfWindowSidebar
+      childrenOfLastChildOfWindowSidebar <- lift $ NL.toArray $ childrenOfLastChildOfWindowSidebar_
+      uClearFix <- MaybeT $ pure $ childrenOfLastChildOfWindowSidebar !! 1
+      firstChildOfUClearFix <- MaybeT $ DOM.firstChild uClearFix
+      let pointOfInsertion = firstChildOfUClearFix
 
       trelloRemindersBtnDivElt <- lift $ DOM.createElement "a" document
       _ <- lift $ DOM.setAttribute "id" "trello-reminders-btn" trelloRemindersBtnDivElt
       _ <- lift $ DOM.setAttribute "class" "button-link" trelloRemindersBtnDivElt
       _ <- lift $ DOM.setAttribute "title" "Click to set a reminder on this card" trelloRemindersBtnDivElt
 
-      -- Get the first child of other-actions/actionPane => <h3>Actions</h3>
-      -- Get the next sibling of <h3>Actions</h3>
-      -- In the next sibling of <h3>Actions</h3>:
-      --   * Get the first child
-      --   * Add a new child before the first child
-      firstChildOfOtherActions <- MaybeT $ DOM.firstChild (unsafeCoerce otherActions)
-      secondChildOfOtherActions <- MaybeT $ Helpers.nextSibling (unsafeCoerce firstChildOfOtherActions)
 
-      -- Add a new child before the first child of secondChildofotheractions
-      pointOfInsertion <- MaybeT $ DOM.firstChild secondChildOfOtherActions
-      _ <- lift $ DOM.insertBefore (unsafeCoerce trelloRemindersBtnDivElt) pointOfInsertion secondChildOfOtherActions
+      _ <- lift $ DOM.insertBefore (unsafeCoerce trelloRemindersBtnDivElt) pointOfInsertion uClearFix
+
       _ <- lift $ ReactDOM.render (React.createLeafElement setReminderClass { htmlDoc: document }) trelloRemindersBtnDivElt
       pure unit
 
