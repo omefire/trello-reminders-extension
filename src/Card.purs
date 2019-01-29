@@ -3,6 +3,7 @@ module Main where -- Card where
 
 import Data.DateTime
 import Data.Maybe
+import Data.Validation.Semiring
 import Prelude
 
 import Control.Monad.Maybe.Trans (runMaybeT, MaybeT(..))
@@ -10,7 +11,9 @@ import Control.Monad.Trans.Class (lift)
 import Control.MonadZero (guard)
 import Data.Array (head, take, filter, (:), findIndex, updateAt, length, (!!))
 import Data.Function (flip)
+import Data.String.Common (trim, null) as String
 import Effect (Effect)
+import Effect.Console (log, logShow)
 import Effect.Timer (setInterval, setTimeout)
 import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, documentHead, setOnLoad, showModal, show, setTimeout, setInterval, flatpickr, getElementsByClassName) as Helpers
 import Partial.Unsafe (unsafePartial)
@@ -24,14 +27,11 @@ import Web.DOM.Document (Document, getElementsByClassName, createElement, url) a
 import Web.DOM.Element (setAttribute, toNode, Element) as DOM
 import Web.DOM.HTMLCollection (item)
 import Web.DOM.HTMLCollection (toArray)
-import Web.DOM.NodeList (toArray) as NL
 import Web.DOM.Node (firstChild, lastChild, insertBefore, appendChild, childNodes) as DOM
+import Web.DOM.NodeList (toArray) as NL
 import Web.HTML (window) as DOM
 import Web.HTML.HTMLDocument (toDocument, body) as DOM
 import Web.HTML.Window (document) as DOM
-import Data.String.Common (trim, null) as String
-
-import Effect.Console (log, logShow)
 
 main :: Effect Unit
 main = do
@@ -361,7 +361,8 @@ modalClass = React.component "Modal" component
                                     Props._type "datetime-local",
                                     Props.placeholder "Pick a date & time",
                                     Props.style { "width": "100%" },
-                                    Props.unsafeMkProps "data-format" "MM/dd/yyy hh:mm:ss"
+                                    Props.unsafeMkProps "data-format" "MM/dd/yyy hh:mm:ss",
+                                    Props.required true
                                   ]
                                 ]
                               ]
@@ -378,7 +379,47 @@ modalClass = React.component "Modal" component
                               ],
 
                             DOM.button
-                              [ Props._type "button", Props.className "btn btn-primary", Props.unsafeMkProps "data-dismiss" "modal" ]
+                              [
+                                Props._type "button",
+                                Props.className "btn btn-primary",
+                                -- Props.unsafeMkProps "data-dismiss" "modal",
+                                -- TODO: Validate every other field as well (when user clicks on submit button)
+                                Props.onClick $ \ evt -> do
+                                   window <- DOM.window
+                                   document <- DOM.document window
+                                   mElt <- Helpers.getElementById "dateinput" $ DOM.toDocument document
+                                   let elt = (unsafePartial $ fromJust mElt) --TODO: What happens here if there is no element with the id we're looking for?
+                                   let dateString = (unsafeCoerce elt).value
+                                   let isEmpty = (\value -> (String.null <<< String.trim))
+                                   let validate = \formData ->
+                                      { name: _, description: _, emails: _, datetime: _ }
+                                      <$> (isNotEmpty "name" formData.name)
+                                      <*> (isNotEmpty "description" formData.description)
+                                      <*> ( (isListNotEmpty formData.emails) `andThen` (\emails -> ) )
+                                      <*> ( (isNotEmpty "datetime" formData.datetime) `andThen` (\datetime -> isDateValid datetime) `andThen` (\datetime -> isDateInFuture formData.datetime) )
+                                   unV
+                                    (\errors ->
+                                      React.setState this { isNameValid:  }
+                                    )
+                                    (\formData -> do
+                                      React.setState this { }
+                                      pure unit
+                                    )
+                                    (validation $ FormData name description emails dateinput)
+
+                                   -- React.setStateWithCallback this { name: value } $ do
+                                   --   let isNameEmpty = (String.null <<< String.trim) value
+                                   --   case isNameEmpty of
+                                   --     true -> do
+                                   --              let newErrors' = (filter (\e -> e.fieldName /= "date") formErrors.errors)
+                                   --              let newErrors = { fieldName: "date", errorMessage: "Please, enter a valid date" } : newErrors'
+                                   --              React.setState this { isNameValid: false, formErrors: { errors: newErrors } }
+
+                                   --     false -> do
+                                   --               let newErrors = (filter (\e -> e.fieldName /= "name") formErrors.errors)
+                                   --               React.setState this { isNameValid: true, formErrors: { errors: newErrors } }
+
+                              ]
                               [
                                 DOM.text "Save changes"
                               ]
@@ -420,3 +461,29 @@ setReminderClass = React.component "Main" component
             React.createLeafElement modalClass { }
           ]
 
+
+
+-- ====== Validation ======== --
+type Error = { fieldName :: String, errorMessage :: String }
+
+isNotEmpty :: String -> String -> V Error String
+isNotEmpty field value = let result = $ ((String.null <<< String.trim) value) == ""
+                in case result of
+                  true -> pure value
+                  false -> invalid "The '" <> field <> "'" <> " cannot be empty"
+
+
+isDateValid :: String -> V Error DateTime
+isDateValid s = 
+
+
+isDateInFuture :: DateTime -> V Error DateTime
+isDateInFuture dt = 
+
+isListNotEmpty :: forall a. [a] -> V Error [a]
+isListNotEmpty list
+  | (length list == 0) = pure
+
+
+isEmailValid :: String -> Boolean
+isEmailValid email =
