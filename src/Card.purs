@@ -3,7 +3,9 @@ module Main where -- Card where
 
 import Data.DateTime
 import Data.Maybe
-import Data.Validation.Semiring
+
+import Data.Validation.Semigroup
+
 import Prelude
 
 import Control.Monad.Maybe.Trans (runMaybeT, MaybeT(..))
@@ -32,6 +34,13 @@ import Web.DOM.NodeList (toArray) as NL
 import Web.HTML (window) as DOM
 import Web.HTML.HTMLDocument (toDocument, body) as DOM
 import Web.HTML.Window (document) as DOM
+
+import Data.JSDate as JSDate
+
+import Data.String.Regex as Regex
+import Data.String.Regex.Flags as Regex
+
+import Data.Either
 
 main :: Effect Unit
 main = do
@@ -127,6 +136,7 @@ modalClass = React.component "Modal" component
                       emails: [] :: Array ({ emailValue :: String, isChecked :: Boolean }),
                       datetime: "",
                       formErrors: { errors: [] } :: FormErrors,
+
                       isNameValid: true,
                       isDescriptionValid: true,
                       isAtLeastOneEmailSelected: false,
@@ -205,17 +215,19 @@ modalClass = React.component "Modal" component
 
                                   Props.onChange $ \ evt -> do
                                     let value = (unsafeCoerce evt).target.value
-                                    React.setStateWithCallback this { name: value } $ do
-                                      let isNameEmpty = (String.null <<< String.trim) value
-                                      case isNameEmpty of
-                                         true -> do
-                                                  let newErrors' = (filter (\e -> e.fieldName /= "name") formErrors.errors)
-                                                  let newErrors = { fieldName: "name", errorMessage: "The 'name' field cannot be empty." } : newErrors'
-                                                  React.setState this { isNameValid: false, formErrors: { errors: newErrors } }
+                                    React.setState this { name: value }
 
-                                         false -> do
-                                                   let newErrors = (filter (\e -> e.fieldName /= "name") formErrors.errors)
-                                                   React.setState this { isNameValid: true, formErrors: { errors: newErrors } }
+                                    -- React.setStateWithCallback this { name: value } $ do
+                                    --   let isNameEmpty = (String.null <<< String.trim) value
+                                    --   case isNameEmpty of
+                                    --      true -> do
+                                    --               let newErrors' = (filter (\e -> e.fieldName /= "name") formErrors.errors)
+                                    --               let newErrors = { fieldName: "name", errorMessage: "The 'name' field cannot be empty." } : newErrors'
+                                    --               React.setState this { isNameValid: false, formErrors: { errors: newErrors } }
+
+                                    --      false -> do
+                                    --                let newErrors = (filter (\e -> e.fieldName /= "name") formErrors.errors)
+                                    --                React.setState this { isNameValid: true, formErrors: { errors: newErrors } }
 
                                   , Props.style { "width": "100%" }
                                 ]
@@ -390,34 +402,27 @@ modalClass = React.component "Modal" component
                                    mElt <- Helpers.getElementById "dateinput" $ DOM.toDocument document
                                    let elt = (unsafePartial $ fromJust mElt) --TODO: What happens here if there is no element with the id we're looking for?
                                    let dateString = (unsafeCoerce elt).value
-                                   let isEmpty = (\value -> (String.null <<< String.trim))
-                                   let validate = \formData ->
-                                      { name: _, description: _, emails: _, datetime: _ }
-                                      <$> (isNotEmpty "name" formData.name)
-                                      <*> (isNotEmpty "description" formData.description)
-                                      <*> ( (isListNotEmpty formData.emails) `andThen` (\emails -> ) )
-                                      <*> ( (isNotEmpty "datetime" formData.datetime) `andThen` (\datetime -> isDateValid datetime) `andThen` (\datetime -> isDateInFuture formData.datetime) )
+
+                                   jsDate <- JSDate.parse dateString
+                                   now <- JSDate.now
+                                   { name, description, emails, datetime } <- React.getState this
+                                   let emails' = map (\email -> email.emailValue) $ filter (\email -> email.isChecked == true) emails
+
                                    unV
-                                    (\errors ->
-                                      React.setState this { isNameValid:  }
+                                    (\errors -> do
+
+                                      let isNameValid = (length (filter (\error -> error.fieldName == "name") errors) == 0)
+                                      let isDescriptionValid = (length (filter (\error -> error.fieldName == "description") errors) == 0)
+
+                                      React.setState this { isNameValid: isNameValid, isDescriptionValid: isDescriptionValid, isFormValid: false, formErrors: { errors: errors }  }
                                     )
                                     (\formData -> do
-                                      React.setState this { }
-                                      pure unit
+                                      -- React.setState this { }
+                                      Helpers.alert formData.name
                                     )
-                                    (validation $ FormData name description emails dateinput)
+                                    ( validate now $ { name: name, description: description, emails: emails', jsDate: jsDate } )
 
-                                   -- React.setStateWithCallback this { name: value } $ do
-                                   --   let isNameEmpty = (String.null <<< String.trim) value
-                                   --   case isNameEmpty of
-                                   --     true -> do
-                                   --              let newErrors' = (filter (\e -> e.fieldName /= "date") formErrors.errors)
-                                   --              let newErrors = { fieldName: "date", errorMessage: "Please, enter a valid date" } : newErrors'
-                                   --              React.setState this { isNameValid: false, formErrors: { errors: newErrors } }
-
-                                   --     false -> do
-                                   --               let newErrors = (filter (\e -> e.fieldName /= "name") formErrors.errors)
-                                   --               React.setState this { isNameValid: true, formErrors: { errors: newErrors } }
+                                   pure unit
 
                               ]
                               [
@@ -464,26 +469,55 @@ setReminderClass = React.component "Main" component
 
 
 -- ====== Validation ======== --
+
+type ValidatedFormData = { name :: String, description :: String, emails :: Array String, datetime :: DateTime }
+
 type Error = { fieldName :: String, errorMessage :: String }
+type Errors = Array Error
 
-isNotEmpty :: String -> String -> V Error String
-isNotEmpty field value = let result = $ ((String.null <<< String.trim) value) == ""
-                in case result of
-                  true -> pure value
-                  false -> invalid "The '" <> field <> "'" <> " cannot be empty"
-
-
-isDateValid :: String -> V Error DateTime
-isDateValid s = 
+isNotEmpty :: String -> String -> V Errors String
+isNotEmpty field value = let result = ((String.null <<< String.trim) value)
+                         in case result of
+                           true -> invalid $ [{ fieldName: field, errorMessage: "The '" <> field <> "'" <> " cannot be empty" }]
+                           false -> pure value
 
 
-isDateInFuture :: DateTime -> V Error DateTime
-isDateInFuture dt = 
+isDateValid :: String -> JSDate.JSDate -> V Errors DateTime
+isDateValid field jsDate = case JSDate.toDateTime jsDate of
+  Nothing -> invalid $ [{ fieldName: field, errorMessage: "Please, provide a valid datetime"}]
+  Just date -> pure date
 
-isListNotEmpty :: forall a. [a] -> V Error [a]
-isListNotEmpty list
-  | (length list == 0) = pure
+
+isDateInFuture :: String -> DateTime -> DateTime -> V Errors DateTime
+isDateInFuture field currentDateTime dateTime
+  | compare currentDateTime dateTime == LT = pure dateTime
+  | otherwise = invalid $ [{ fieldName: field, errorMessage: "Please, make sure that the provided date is in the future"}]
+
+isArrayNotEmpty :: forall a. String -> Array a -> V Errors (Array a)
+isArrayNotEmpty field array
+  | (length array == 0) = invalid $ [{ fieldName: field, errorMessage: "Please, check at least one " <> field <> " address" }]
+  | otherwise = pure array
 
 
 isEmailValid :: String -> Boolean
-isEmailValid email =
+isEmailValid email = let re = Regex.regex """/\S+@\S+\.\S+/""" $ Regex.RegexFlags { ignoreCase: true, global: false, multiline: false, sticky: false, unicode: false }
+                     in case re of
+                       Left _ -> false
+                       Right _ -> true
+
+areEmailsValid :: Array String -> V Errors (Array String)
+areEmailsValid emails = let ems = filter (\email -> isEmailValid email) emails
+                        in case (length ems) of
+                          0 -> invalid $ [{ fieldName: "emails", errorMessage: "There are invalid emails in the list" }]
+                          _ -> pure emails
+
+
+validate :: JSDate.JSDate -> { name :: String, description :: String, emails :: Array String, jsDate :: JSDate.JSDate } -> V Errors ValidatedFormData
+validate now values =
+  { name: _, description: _, emails: _, datetime: _ }
+  <$> (isNotEmpty "name" values.name)
+  <*> (isNotEmpty "description" values.description)
+  <*> ( (isArrayNotEmpty "email" values.emails) `andThen` (\emails -> areEmailsValid emails) )
+  <*> ( (isDateValid "datetime" values.jsDate)
+        `andThen` (\dt -> isDateInFuture "dateinput" (unsafePartial fromJust $ JSDate.toDateTime now) dt)
+      )
