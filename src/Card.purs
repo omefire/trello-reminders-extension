@@ -42,6 +42,8 @@ import Data.String.Regex.Flags as Regex
 
 import Data.Either
 
+import Helpers.JQuery as JQ
+
 main :: Effect Unit
 main = do
  void $ setInterval 300 $ void $ do
@@ -114,7 +116,7 @@ formErrorsClass = React.component "FormErrors" component
             [
               Props.className "formErrors"
             ]
-            $ (flip map) (take 3 frmErrs.errors) $ \err ->
+            $ (flip map) (take 10 frmErrs.errors) $ \err ->
                  case err.errorMessage of
                    "" -> DOM.text ""
                    _ -> DOM.li
@@ -217,18 +219,6 @@ modalClass = React.component "Modal" component
                                     let value = (unsafeCoerce evt).target.value
                                     React.setState this { name: value }
 
-                                    -- React.setStateWithCallback this { name: value } $ do
-                                    --   let isNameEmpty = (String.null <<< String.trim) value
-                                    --   case isNameEmpty of
-                                    --      true -> do
-                                    --               let newErrors' = (filter (\e -> e.fieldName /= "name") formErrors.errors)
-                                    --               let newErrors = { fieldName: "name", errorMessage: "The 'name' field cannot be empty." } : newErrors'
-                                    --               React.setState this { isNameValid: false, formErrors: { errors: newErrors } }
-
-                                    --      false -> do
-                                    --                let newErrors = (filter (\e -> e.fieldName /= "name") formErrors.errors)
-                                    --                React.setState this { isNameValid: true, formErrors: { errors: newErrors } }
-
                                   , Props.style { "width": "100%" }
                                 ]
                               ],
@@ -259,18 +249,7 @@ modalClass = React.component "Modal" component
 
                                     Props.onChange $ \ evt -> do
                                         let value = (unsafeCoerce evt).target.value
-                                        React.setStateWithCallback this { description: value } $ do
-                                          let isDescriptionEmpty = (String.null <<< String.trim) value
-                                          case isDescriptionEmpty of
-                                               true -> do
-                                                        let newErrors' = (filter (\e -> e.fieldName /= "description") formErrors.errors)
-                                                        let newErrors = { fieldName: "description", errorMessage: "The 'description' field cannot be empty." } : newErrors'
-                                                        React.setState this { isDescriptionValid: false, formErrors: { errors: newErrors } }
-
-                                               false -> do
-                                                         let newErrors = (filter (\e -> e.fieldName /= "description") formErrors.errors)
-                                                         React.setState this { isDescriptionValid: true, formErrors: { errors: newErrors } }
-
+                                        React.setState this { description: value }
                                   ]
                                 ]
                               ],
@@ -326,22 +305,7 @@ modalClass = React.component "Modal" component
                                                          if e.emailValue == email.emailValue then { emailValue: email.emailValue,
                                                                                                     isChecked: (not e.isChecked) } else e
                                                     )
-                                                    let isAtLeastOneEmailSelected' = ( length (filter (\em -> em.isChecked) emails') ) > 0
-                                                    let newErrors' = (filter (\e -> e.fieldName /= "emails") formErrors.errors)
-
-                                                    case isAtLeastOneEmailSelected' of
-                                                       true -> do
-                                                                React.setState this { emails: emails',
-                                                                                      formErrors: { errors: newErrors' },
-                                                                                      isAtLeastOneEmailSelected: true }
-                                                       false -> do
-                                                                 let newErrors = {
-                                                                                   fieldName: "emails",
-                                                                                   errorMessage: "Please, select at least one email address"
-                                                                                 } : newErrors'
-                                                                 React.setState this { emails: emails',
-                                                                                       formErrors: { errors: newErrors },
-                                                                                       isAtLeastOneEmailSelected: false }
+                                                    React.setState this { emails: emails' }
                                               ],
                                               DOM.text email.emailValue
                                             ]
