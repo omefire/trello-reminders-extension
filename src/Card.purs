@@ -381,8 +381,8 @@ modalClass = React.component "Modal" component
                                       React.setState this { isNameValid: isNameValid, isDescriptionValid: isDescriptionValid, isFormValid: false, formErrors: { errors: errors }  }
                                     )
                                     (\formData -> do
-                                      -- React.setState this { }
-                                      Helpers.alert formData.name
+                                      React.setState this { isNameValid: true, isDescriptionValid: true, formErrors: { errors: [] } }
+                                      
                                     )
                                     ( validate now $ { name: name, description: description, emails: emails', jsDate: jsDate } )
 
