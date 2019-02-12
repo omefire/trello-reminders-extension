@@ -19,7 +19,8 @@
                 "/bootstrap/css/bootstrap.css",
                 "/bootstrap/css/bootstrap-theme.css",
                 "/bower_components/eonasdan-bootstrap-datetimepicker/build/css/bootstrap-datetimepicker.css",
-                "/flatpickr/flatpickr.min.css"
+                "/flatpickr/flatpickr.min.css",
+                "/spinner.css"
             ],
             "js": [
                 "/jquery/jquery.js",

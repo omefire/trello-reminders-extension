@@ -150,7 +150,13 @@ modalClass = React.component "Modal" component
       where
         componentDidMount this = do
           -- TODO: Get from DB or Web service
-          let emailsT = [ { emailValue: "omefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false } ]
+          let emailsT = [ { emailValue: "omefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
+                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
+                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
+                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
+                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
+                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false }
+                        ]
           React.setState this { emails: emailsT }
 
         render state = do
@@ -275,15 +281,17 @@ modalClass = React.component "Modal" component
                                   DOM.text "Please, select at least one email address"
                                 ],
 
-                                DOM.table
+                                DOM.div
+                                [ Props.style { "overflow": "auto", "height": "200px" } ]
                                 [
-                                  Props.className "table table-striped table-dark",
-                                  Props.style { }
-                                ]
-                                [
-                                  DOM.tbody
-                                  []
-                                  $ (flip map) (emails) $ \ email ->
+                                  DOM.table
+                                  [
+                                    Props.className "table table-striped table-dark"
+                                  ]
+                                  [
+                                    DOM.tbody
+                                    []
+                                    $ (flip map) (emails) $ \ email ->
                                         DOM.tr
                                         [ Props.style { "margin-left": "5px;" } ]
                                         [
@@ -311,6 +319,7 @@ modalClass = React.component "Modal" component
                                             ]
                                           ]
                                         ]
+                                  ]
                                 ]
                               ],
 
@@ -382,7 +391,7 @@ modalClass = React.component "Modal" component
                                     )
                                     (\formData -> do
                                       React.setState this { isNameValid: true, isDescriptionValid: true, formErrors: { errors: [] } }
-                                      
+
                                     )
                                     ( validate now $ { name: name, description: description, emails: emails', jsDate: jsDate } )
 
@@ -442,7 +451,7 @@ type Errors = Array Error
 isNotEmpty :: String -> String -> V Errors String
 isNotEmpty field value = let result = ((String.null <<< String.trim) value)
                          in case result of
-                           true -> invalid $ [{ fieldName: field, errorMessage: "The '" <> field <> "'" <> " cannot be empty" }]
+                           true -> invalid $ [{ fieldName: field, errorMessage: "Please, provide a value for the  '" <> field <> "'" }]
                            false -> pure value
 
 
