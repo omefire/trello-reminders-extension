@@ -3,6 +3,9 @@ module Main where -- Card where
 
 import Data.DateTime
 import Data.Maybe
+
+import Data.Validation.Semigroup
+
 import Prelude
 
 import Control.Monad.Maybe.Trans (runMaybeT, MaybeT(..))
@@ -10,12 +13,14 @@ import Control.Monad.Trans.Class (lift)
 import Control.MonadZero (guard)
 import Data.Array (head, take, filter, (:), findIndex, updateAt, length, (!!))
 import Data.Function (flip)
+import Data.String.Common (trim, null) as String
 import Effect (Effect)
+import Effect.Console (log, logShow)
 import Effect.Timer (setInterval, setTimeout)
 import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, documentHead, setOnLoad, showModal, show, setTimeout, setInterval, flatpickr, getElementsByClassName) as Helpers
 import Partial.Unsafe (unsafePartial)
 import React as React
-import React.DOM (text, a, div, div', h5, span, i, span', img, form', form, fieldset', label', dialog, button', button, select', option', label, input, ul, li, p, table, tbody, tr', td', tr) as DOM
+import React.DOM (text, a, div, div', h5, span, i, span', img, form', form, fieldset', label', dialog, button', button, select', option', label, input, ul, li, p, table, tbody, tr', td', tr, br') as DOM
 import React.DOM.Props as Props
 import React.SyntheticEvent (SyntheticEvent_, SyntheticUIEvent', SyntheticEvent')
 import ReactDOM as ReactDOM
@@ -24,14 +29,20 @@ import Web.DOM.Document (Document, getElementsByClassName, createElement, url) a
 import Web.DOM.Element (setAttribute, toNode, Element) as DOM
 import Web.DOM.HTMLCollection (item)
 import Web.DOM.HTMLCollection (toArray)
-import Web.DOM.NodeList (toArray) as NL
 import Web.DOM.Node (firstChild, lastChild, insertBefore, appendChild, childNodes) as DOM
+import Web.DOM.NodeList (toArray) as NL
 import Web.HTML (window) as DOM
 import Web.HTML.HTMLDocument (toDocument, body) as DOM
 import Web.HTML.Window (document) as DOM
-import Data.String.Common (trim, null) as String
 
-import Effect.Console (log, logShow)
+import Data.JSDate as JSDate
+
+import Data.String.Regex as Regex
+import Data.String.Regex.Flags as Regex
+
+import Data.Either
+
+import Helpers.JQuery as JQ
 
 main :: Effect Unit
 main = do
@@ -105,7 +116,7 @@ formErrorsClass = React.component "FormErrors" component
             [
               Props.className "formErrors"
             ]
-            $ (flip map) (take 3 frmErrs.errors) $ \err ->
+            $ (flip map) (take 10 frmErrs.errors) $ \err ->
                  case err.errorMessage of
                    "" -> DOM.text ""
                    _ -> DOM.li
@@ -127,6 +138,7 @@ modalClass = React.component "Modal" component
                       emails: [] :: Array ({ emailValue :: String, isChecked :: Boolean }),
                       datetime: "",
                       formErrors: { errors: [] } :: FormErrors,
+
                       isNameValid: true,
                       isDescriptionValid: true,
                       isAtLeastOneEmailSelected: false,
@@ -138,7 +150,13 @@ modalClass = React.component "Modal" component
       where
         componentDidMount this = do
           -- TODO: Get from DB or Web service
-          let emailsT = [ { emailValue: "omefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false } ]
+          let emailsT = [ { emailValue: "omefire@gmail.com",     isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
+                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
+                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
+                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
+                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
+                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false }
+                        ]
           React.setState this { emails: emailsT }
 
         render state = do
@@ -205,17 +223,7 @@ modalClass = React.component "Modal" component
 
                                   Props.onChange $ \ evt -> do
                                     let value = (unsafeCoerce evt).target.value
-                                    React.setStateWithCallback this { name: value } $ do
-                                      let isNameEmpty = (String.null <<< String.trim) value
-                                      case isNameEmpty of
-                                         true -> do
-                                                  let newErrors' = (filter (\e -> e.fieldName /= "name") formErrors.errors)
-                                                  let newErrors = { fieldName: "name", errorMessage: "The 'name' field cannot be empty." } : newErrors'
-                                                  React.setState this { isNameValid: false, formErrors: { errors: newErrors } }
-
-                                         false -> do
-                                                   let newErrors = (filter (\e -> e.fieldName /= "name") formErrors.errors)
-                                                   React.setState this { isNameValid: true, formErrors: { errors: newErrors } }
+                                    React.setState this { name: value }
 
                                   , Props.style { "width": "100%" }
                                 ]
@@ -247,18 +255,7 @@ modalClass = React.component "Modal" component
 
                                     Props.onChange $ \ evt -> do
                                         let value = (unsafeCoerce evt).target.value
-                                        React.setStateWithCallback this { description: value } $ do
-                                          let isDescriptionEmpty = (String.null <<< String.trim) value
-                                          case isDescriptionEmpty of
-                                               true -> do
-                                                        let newErrors' = (filter (\e -> e.fieldName /= "description") formErrors.errors)
-                                                        let newErrors = { fieldName: "description", errorMessage: "The 'description' field cannot be empty." } : newErrors'
-                                                        React.setState this { isDescriptionValid: false, formErrors: { errors: newErrors } }
-
-                                               false -> do
-                                                         let newErrors = (filter (\e -> e.fieldName /= "description") formErrors.errors)
-                                                         React.setState this { isDescriptionValid: true, formErrors: { errors: newErrors } }
-
+                                        React.setState this { description: value }
                                   ]
                                 ]
                               ],
@@ -284,15 +281,20 @@ modalClass = React.component "Modal" component
                                   DOM.text "Please, select at least one email address"
                                 ],
 
-                                DOM.table
+                                DOM.div
+                                [ Props.style { "overflow": "auto", "height": "200px" } ]
                                 [
-                                  Props.className "table table-striped table-dark",
-                                  Props.style { }
-                                ]
-                                [
-                                  DOM.tbody
-                                  []
-                                  $ (flip map) (emails) $ \ email ->
+                                  DOM.table
+                                  [
+                                    Props.className "table table-striped table-dark"
+                                  ]
+                                  [
+                                    DOM.tbody
+                                    []
+                                    $ if ( (length emails) == 0) then [ DOM.text "Please, contact info@trelloreminders.com",
+                                                                        DOM.br',
+                                                                        DOM.text " to have email addresses added to your account." ] else
+                                      (flip map) (emails) $ \ email ->
                                         DOM.tr
                                         [ Props.style { "margin-left": "5px;" } ]
                                         [
@@ -314,27 +316,13 @@ modalClass = React.component "Modal" component
                                                          if e.emailValue == email.emailValue then { emailValue: email.emailValue,
                                                                                                     isChecked: (not e.isChecked) } else e
                                                     )
-                                                    let isAtLeastOneEmailSelected' = ( length (filter (\em -> em.isChecked) emails') ) > 0
-                                                    let newErrors' = (filter (\e -> e.fieldName /= "emails") formErrors.errors)
-
-                                                    case isAtLeastOneEmailSelected' of
-                                                       true -> do
-                                                                React.setState this { emails: emails',
-                                                                                      formErrors: { errors: newErrors' },
-                                                                                      isAtLeastOneEmailSelected: true }
-                                                       false -> do
-                                                                 let newErrors = {
-                                                                                   fieldName: "emails",
-                                                                                   errorMessage: "Please, select at least one email address"
-                                                                                 } : newErrors'
-                                                                 React.setState this { emails: emails',
-                                                                                       formErrors: { errors: newErrors },
-                                                                                       isAtLeastOneEmailSelected: false }
+                                                    React.setState this { emails: emails' }
                                               ],
                                               DOM.text email.emailValue
                                             ]
                                           ]
                                         ]
+                                  ]
                                 ]
                               ],
 
@@ -361,7 +349,8 @@ modalClass = React.component "Modal" component
                                     Props._type "datetime-local",
                                     Props.placeholder "Pick a date & time",
                                     Props.style { "width": "100%" },
-                                    Props.unsafeMkProps "data-format" "MM/dd/yyy hh:mm:ss"
+                                    Props.unsafeMkProps "data-format" "MM/dd/yyy hh:mm:ss",
+                                    Props.required true
                                   ]
                                 ]
                               ]
@@ -378,7 +367,40 @@ modalClass = React.component "Modal" component
                               ],
 
                             DOM.button
-                              [ Props._type "button", Props.className "btn btn-primary", Props.unsafeMkProps "data-dismiss" "modal" ]
+                              [
+                                Props._type "button",
+                                Props.className "btn btn-primary",
+                                -- Props.unsafeMkProps "data-dismiss" "modal",
+                                -- TODO: Validate every other field as well (when user clicks on submit button)
+                                Props.onClick $ \ evt -> do
+                                   window <- DOM.window
+                                   document <- DOM.document window
+                                   mElt <- Helpers.getElementById "dateinput" $ DOM.toDocument document
+                                   let elt = (unsafePartial $ fromJust mElt) --TODO: What happens here if there is no element with the id we're looking for?
+                                   let dateString = (unsafeCoerce elt).value
+
+                                   jsDate <- JSDate.parse dateString
+                                   now <- JSDate.now
+                                   { name, description, emails, datetime } <- React.getState this
+                                   let emails' = map (\email -> email.emailValue) $ filter (\email -> email.isChecked == true) emails
+
+                                   unV
+                                    (\errors -> do
+
+                                      let isNameValid = (length (filter (\error -> error.fieldName == "name") errors) == 0)
+                                      let isDescriptionValid = (length (filter (\error -> error.fieldName == "description") errors) == 0)
+
+                                      React.setState this { isNameValid: isNameValid, isDescriptionValid: isDescriptionValid, isFormValid: false, formErrors: { errors: errors }  }
+                                    )
+                                    (\formData -> do
+                                      React.setState this { isNameValid: true, isDescriptionValid: true, formErrors: { errors: [] } }
+
+                                    )
+                                    ( validate now $ { name: name, description: description, emails: emails', jsDate: jsDate } )
+
+                                   pure unit
+
+                              ]
                               [
                                 DOM.text "Save changes"
                               ]
@@ -420,3 +442,58 @@ setReminderClass = React.component "Main" component
             React.createLeafElement modalClass { }
           ]
 
+
+
+-- ====== Validation ======== --
+
+type ValidatedFormData = { name :: String, description :: String, emails :: Array String, datetime :: DateTime }
+
+type Error = { fieldName :: String, errorMessage :: String }
+type Errors = Array Error
+
+isNotEmpty :: String -> String -> V Errors String
+isNotEmpty field value = let result = ((String.null <<< String.trim) value)
+                         in case result of
+                           true -> invalid $ [{ fieldName: field, errorMessage: "Please, provide a value for the  '" <> field <> "'" }]
+                           false -> pure value
+
+
+isDateValid :: String -> JSDate.JSDate -> V Errors DateTime
+isDateValid field jsDate = case JSDate.toDateTime jsDate of
+  Nothing -> invalid $ [{ fieldName: field, errorMessage: "Please, provide a valid datetime"}]
+  Just date -> pure date
+
+
+isDateInFuture :: String -> DateTime -> DateTime -> V Errors DateTime
+isDateInFuture field currentDateTime dateTime
+  | compare currentDateTime dateTime == LT = pure dateTime
+  | otherwise = invalid $ [{ fieldName: field, errorMessage: "Please, make sure that the provided date is in the future"}]
+
+isArrayNotEmpty :: forall a. String -> Array a -> V Errors (Array a)
+isArrayNotEmpty field array
+  | (length array == 0) = invalid $ [{ fieldName: field, errorMessage: "Please, check at least one " <> field <> " address" }]
+  | otherwise = pure array
+
+
+isEmailValid :: String -> Boolean
+isEmailValid email = let re = Regex.regex """/\S+@\S+\.\S+/""" $ Regex.RegexFlags { ignoreCase: true, global: false, multiline: false, sticky: false, unicode: false }
+                     in case re of
+                       Left _ -> false
+                       Right _ -> true
+
+areEmailsValid :: Array String -> V Errors (Array String)
+areEmailsValid emails = let ems = filter (\email -> isEmailValid email) emails
+                        in case (length ems) of
+                          0 -> invalid $ [{ fieldName: "emails", errorMessage: "There are invalid emails in the list" }]
+                          _ -> pure emails
+
+
+validate :: JSDate.JSDate -> { name :: String, description :: String, emails :: Array String, jsDate :: JSDate.JSDate } -> V Errors ValidatedFormData
+validate now values =
+  { name: _, description: _, emails: _, datetime: _ }
+  <$> (isNotEmpty "name" values.name)
+  <*> (isNotEmpty "description" values.description)
+  <*> ( (isArrayNotEmpty "email" values.emails) `andThen` (\emails -> areEmailsValid emails) )
+  <*> ( (isDateValid "datetime" values.jsDate)
+        `andThen` (\dt -> isDateInFuture "dateinput" (unsafePartial fromJust $ JSDate.toDateTime now) dt)
+      )
