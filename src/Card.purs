@@ -150,13 +150,13 @@ modalClass = React.component "Modal" component
       where
         componentDidMount this = do
           -- TODO: Get from DB or Web service
-          let emailsT = [] --[ { emailValue: "omefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
-                          --{ emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
-                          --{ emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
-                          --{ emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
-                          --{ emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
-                          --{ emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false }
-                        --]
+          let emailsT = [ { emailValue: "omefire@gmail.com",     isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
+                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
+                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
+                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
+                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
+                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false }
+                        ]
           React.setState this { emails: emailsT }
 
         render state = do
