@@ -20,7 +20,7 @@ import Effect.Timer (setInterval, setTimeout)
 import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, documentHead, setOnLoad, showModal, show, setTimeout, setInterval, flatpickr, getElementsByClassName) as Helpers
 import Partial.Unsafe (unsafePartial)
 import React as React
-import React.DOM (text, a, div, div', h5, span, i, span', img, form', form, fieldset', label', dialog, button', button, select', option', label, input, ul, li, p, table, tbody, tr', td', tr) as DOM
+import React.DOM (text, a, div, div', h5, span, i, span', img, form', form, fieldset', label', dialog, button', button, select', option', label, input, ul, li, p, table, tbody, tr', td', tr, br') as DOM
 import React.DOM.Props as Props
 import React.SyntheticEvent (SyntheticEvent_, SyntheticUIEvent', SyntheticEvent')
 import ReactDOM as ReactDOM
@@ -150,13 +150,13 @@ modalClass = React.component "Modal" component
       where
         componentDidMount this = do
           -- TODO: Get from DB or Web service
-          let emailsT = [ { emailValue: "omefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
-                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
-                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
-                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
-                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
-                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false }
-                        ]
+          let emailsT = [] --[ { emailValue: "omefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
+                          --{ emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
+                          --{ emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
+                          --{ emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
+                          --{ emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
+                          --{ emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false }
+                        --]
           React.setState this { emails: emailsT }
 
         render state = do
@@ -291,7 +291,10 @@ modalClass = React.component "Modal" component
                                   [
                                     DOM.tbody
                                     []
-                                    $ (flip map) (emails) $ \ email ->
+                                    $ if ( (length emails) == 0) then [ DOM.text "Please, contact info@trelloreminders.com",
+                                                                        DOM.br',
+                                                                        DOM.text " to have email addresses added to your account." ] else
+                                      (flip map) (emails) $ \ email ->
                                         DOM.tr
                                         [ Props.style { "margin-left": "5px;" } ]
                                         [
