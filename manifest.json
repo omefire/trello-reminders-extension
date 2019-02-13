@@ -8,7 +8,8 @@
         "default_icon": "logo.png"
     },
     "permissions": [
-        "activeTab"
+        "activeTab",
+        "http://localhost:8081/"
     ],
     "content_scripts": [
         {
