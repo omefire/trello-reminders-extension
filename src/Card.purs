@@ -1,22 +1,35 @@
 module Main where -- Card where
 
 
+import Affjax.ResponseFormat
+import Control.Monad.Except.Trans
 import Data.DateTime
+import Data.Either
 import Data.Maybe
-
 import Data.Validation.Semigroup
-
+import Effect.Aff
 import Prelude
 
+import Affjax as AX
+import Affjax.ResponseFormat as ResponseFormat
 import Control.Monad.Maybe.Trans (runMaybeT, MaybeT(..))
 import Control.Monad.Trans.Class (lift)
 import Control.MonadZero (guard)
+import Data.Argonaut.Core (Json)
+import Data.Argonaut.Core as J
 import Data.Array (head, take, filter, (:), findIndex, updateAt, length, (!!))
 import Data.Function (flip)
+import Data.HTTP.Method (Method(..))
+import Data.JSDate as JSDate
 import Data.String.Common (trim, null) as String
+import Data.String.Regex as Regex
+import Data.String.Regex.Flags as Regex
 import Effect (Effect)
+import Effect.Aff (launchAff)
+import Effect.Class (liftEffect)
 import Effect.Console (log, logShow)
 import Effect.Timer (setInterval, setTimeout)
+import Foreign (MultipleErrors)
 import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, documentHead, setOnLoad, showModal, show, setTimeout, setInterval, flatpickr, getElementsByClassName) as Helpers
 import Partial.Unsafe (unsafePartial)
 import React as React
@@ -24,9 +37,10 @@ import React.DOM (text, a, div, div', h5, span, i, span', img, form', form, fiel
 import React.DOM.Props as Props
 import React.SyntheticEvent (SyntheticEvent_, SyntheticUIEvent', SyntheticEvent')
 import ReactDOM as ReactDOM
+import Simple.JSON as JSON
 import Unsafe.Coerce (unsafeCoerce)
 import Web.DOM.Document (Document, getElementsByClassName, createElement, url) as DOM
-import Web.DOM.Element (setAttribute, toNode, Element) as DOM
+import Web.DOM.Element (setAttribute, getAttribute, toNode, Element) as DOM
 import Web.DOM.HTMLCollection (item)
 import Web.DOM.HTMLCollection (toArray)
 import Web.DOM.Node (firstChild, lastChild, insertBefore, appendChild, childNodes) as DOM
@@ -34,15 +48,6 @@ import Web.DOM.NodeList (toArray) as NL
 import Web.HTML (window) as DOM
 import Web.HTML.HTMLDocument (toDocument, body) as DOM
 import Web.HTML.Window (document) as DOM
-
-import Data.JSDate as JSDate
-
-import Data.String.Regex as Regex
-import Data.String.Regex.Flags as Regex
-
-import Data.Either
-
-import Helpers.JQuery as JQ
 
 main :: Effect Unit
 main = do
@@ -72,6 +77,12 @@ tryDisplay = do
       -- Do NOT display button if we are not in the context of a Card (we check this by verifying the URL)
       _ <- MaybeT $ pure $ Helpers.getCardIdFromUrl url
 
+
+      -- Grab the Trello's idmember belonging to this user
+      memberDivElt <- MaybeT $ Helpers.getFirstElementByClassName "member js-show-mem-menu" document
+      trelloID <- MaybeT $ DOM.getAttribute "idmember" memberDivElt
+
+
       -- Process:
       -- 1- Get the element with class 'window-sidebar'
       -- 2- Get the last child of 'window-sidebar': 'window-module u-clearfix'
@@ -94,7 +105,7 @@ tryDisplay = do
 
       _ <- lift $ DOM.insertBefore (unsafeCoerce trelloRemindersBtnDivElt) pointOfInsertion uClearFix
 
-      _ <- lift $ ReactDOM.render (React.createLeafElement setReminderClass { htmlDoc: document }) trelloRemindersBtnDivElt
+      _ <- lift $ ReactDOM.render (React.createLeafElement setReminderClass { htmlDoc: document, trelloIDMember: trelloID }) trelloRemindersBtnDivElt
       pure unit
 
 
@@ -127,7 +138,7 @@ formErrorsClass = React.component "FormErrors" component
                             DOM.text $ err.errorMessage
                           ]
 
-modalClass :: React.ReactClass { }
+modalClass :: React.ReactClass { trelloIDMember :: String }
 modalClass = React.component "Modal" component
   where
     component this =
@@ -142,25 +153,60 @@ modalClass = React.component "Modal" component
                       isNameValid: true,
                       isDescriptionValid: true,
                       isAtLeastOneEmailSelected: false,
-                      isFormValid: false
+                      isFormValid: false,
+                      isLoadingEmails: false,
+                      didErrorOccurWhileLoadingEmails: false,
+                      errorThatOccuredWhileLoadingEmails: ""
                     },
              componentDidMount: componentDidMount this,
              render: render $ React.getState this
            }
       where
-        componentDidMount this = do
-          -- TODO: Get from DB or Web service
-          let emailsT = [ { emailValue: "omefire@gmail.com",     isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
-                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
-                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
-                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
-                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false },
-                          { emailValue: "hamidmefire@gmail.com", isChecked: false }, { emailValue: "hamidmefire@gmail.com", isChecked: false }
-                        ]
-          React.setState this { emails: emailsT }
+        componentDidMount that = do
+          { trelloIDMember: trelloID } <- React.getProps that
+          React.setState that { isLoadingEmails: true }
+          runAff_ (\e ->
+            case e of
+              Left err -> do
+                React.setState that { isLoadingEmails: false, didErrorOccurWhileLoadingEmails: true, errorThatOccuredWhileLoadingEmails: (show err) }
+                -- Helpers.alert $ "Sorry, an error occured while loading emails: " <> show err
+
+              Right emails -> React.setState that { emails: formatEmailsForUI emails, isLoadingEmails: false })
+            (do
+                eEmails <- (runExceptT $ do
+                               user <- ExceptT $ getTrelloData trelloID
+                               emails <- ExceptT $ getEmails user.email
+                               pure $ emails)
+                case eEmails of
+                  Left err -> throwError $ error err
+                  Right emails -> pure emails
+            )
+            where
+              formatEmailsForUI :: Array String -> Array { isChecked :: Boolean, emailValue :: String }
+              formatEmailsForUI emails = (flip map) emails $ \e -> { isChecked: false, emailValue: e}
+
+              getEmails :: String -> Aff (Either String (Array String))
+              getEmails email = do
+                let url = "http://localhost:8081/getEmailsForUser/" <> email
+                res <- AX.get ResponseFormat.json url
+                case res.body of
+                  Left err -> pure $ Left $ AX.printResponseFormatError err
+                  Right json -> pure $ Right $ ["omefire@gmail.com"]
+
+              getTrelloData :: String -> Aff (Either String TrelloUser)
+              getTrelloData trelloID = do
+                let url = "https://api.trello.com/1/members/" <> trelloID <> "?key=ENTER_TRELLO_KEY" <> "&token=ENTER_TRELLO_TOKEN"
+                res <- AX.get ResponseFormat.json url
+                case res.body of
+                  Left err -> pure $ Left $ AX.printResponseFormatError err
+                  Right json -> do
+                    let eUser = (JSON.readJSON $ J.stringify json)
+                    case eUser of
+                      Left err2 -> pure $ Left $ "An error occured while parsing JSON."
+                      Right (user :: TrelloUser) ->  pure $ Right user
 
         render state = do
-          { name, formErrors, isNameValid, isDescriptionValid, isAtLeastOneEmailSelected, emails } <- state
+          { name, formErrors, isNameValid, isDescriptionValid, isAtLeastOneEmailSelected, emails, isLoadingEmails, didErrorOccurWhileLoadingEmails, errorThatOccuredWhileLoadingEmails } <- state
           pure $
             DOM.div
               [
@@ -291,37 +337,11 @@ modalClass = React.component "Modal" component
                                   [
                                     DOM.tbody
                                     []
-                                    $ if ( (length emails) == 0) then [ DOM.text "Please, contact info@trelloreminders.com",
-                                                                        DOM.br',
-                                                                        DOM.text " to have email addresses added to your account." ] else
-                                      (flip map) (emails) $ \ email ->
-                                        DOM.tr
-                                        [ Props.style { "margin-left": "5px;" } ]
-                                        [
-                                          DOM.td'
-                                          [
-                                            DOM.label
-                                            []
-                                            [
-                                              DOM.input
-                                              [
-                                                 Props._id email.emailValue,
-                                                 Props.name email.emailValue,
-                                                 Props._type "checkbox",
-                                                 Props.value email.emailValue,
-                                                 Props.checked email.isChecked,
-
-                                                 Props.onInput $ \ evt -> do
-                                                    let emails' = ((flip map) emails $ \ e ->
-                                                         if e.emailValue == email.emailValue then { emailValue: email.emailValue,
-                                                                                                    isChecked: (not e.isChecked) } else e
-                                                    )
-                                                    React.setState this { emails: emails' }
-                                              ],
-                                              DOM.text email.emailValue
-                                            ]
-                                          ]
-                                        ]
+                                    $ displayEmails this isLoadingEmails emails didErrorOccurWhileLoadingEmails errorThatOccuredWhileLoadingEmails
+                                    -- $ if (isLoadingEmails) then [ DOM.text "Loading emails, please wait..." ]
+                                    --   else case (length emails) of
+                                    --            0 -> [ DOM.text "Please, contact info@trelloreminders.com", DOM.br', DOM.text " to have email addresses added to your account." ]
+                                    --            _ -> displayEmails this emails
                                   ]
                                 ]
                               ],
@@ -409,12 +429,12 @@ modalClass = React.component "Modal" component
                   ]
               ]
 
-setReminderClass :: React.ReactClass { htmlDoc :: DOM.Document }
+setReminderClass :: React.ReactClass { htmlDoc :: DOM.Document, trelloIDMember :: String }
 setReminderClass = React.component "Main" component
   where
   component this =
     pure {
-            render: render
+            render: render this
          }
     where
       removeModalBackdrop doc = do
@@ -423,14 +443,14 @@ setReminderClass = React.component "Main" component
           Nothing -> pure unit
           Just elt -> DOM.setAttribute "class" "fade in" elt
 
-      render = do
+      render that = do
+        { htmlDoc: doc, trelloIDMember: idmember } <- React.getProps that
         pure $
           DOM.div'
           [
             DOM.span
             [
               Props.onClick $ \evt -> do
-                 { htmlDoc: doc } <- React.getProps this
                  Helpers.setTimeout 500 $ do -- TODO: Couldn't this fail? Should we just keep doing it until it succeeds and then stop?
                    removeModalBackdrop doc
                  ,
@@ -439,7 +459,7 @@ setReminderClass = React.component "Main" component
             ]
             [ DOM.text "Set a reminder" ],
 
-            React.createLeafElement modalClass { }
+            React.createLeafElement modalClass { trelloIDMember: idmember }
           ]
 
 
@@ -497,3 +517,54 @@ validate now values =
   <*> ( (isDateValid "datetime" values.jsDate)
         `andThen` (\dt -> isDateInFuture "dateinput" (unsafePartial fromJust $ JSDate.toDateTime now) dt)
       )
+
+
+-- ======== JSON Deserialization ======== --
+type TrelloUser =
+ {
+   id :: String,
+   email :: String,
+   username :: String,
+   fullName :: String
+ }
+
+
+-- ======== Display ======== --
+-- displayEmails :: ReactThis -> Boolean -> Array { emailValue :: String, isChecked :: Boolean } -> Boolean -> String -> Array ReactElement
+displayEmails that isLoadingEmails emails
+  didErrorOccurWhileLoadingEmails
+  errorThatOccuredWhileLoadingEmails
+
+  | isLoadingEmails = [ DOM.text "Loading emails. Please, wait..." ]
+  | didErrorOccurWhileLoadingEmails = [ DOM.text $ "Sorry, an error occured while loading emails: " <> errorThatOccuredWhileLoadingEmails ]
+  | (length emails == 0) = [ DOM.text "Please, contact info@trelloreminders.com", DOM.br',
+                             DOM.text "to have emails registered to your account" ]
+  | otherwise =  (flip map) (emails) $ \ email ->
+
+    DOM.tr
+    [ Props.style { "margin-left": "5px;" } ]
+    [
+      DOM.td'
+      [
+        DOM.label
+        []
+        [
+          DOM.input
+          [
+            Props._id email.emailValue,
+            Props.name email.emailValue,
+            Props._type "checkbox",
+            Props.value email.emailValue,
+            Props.checked email.isChecked,
+
+            Props.onInput $ \ evt -> do
+              let emails' = ((flip map) emails $ \ e ->
+                              if e.emailValue == email.emailValue then { emailValue: email.emailValue,
+                                                                         isChecked: (not e.isChecked) } else e
+                            )
+              React.setState that { emails: emails' }
+          ],
+          DOM.text email.emailValue
+        ]
+      ]
+    ]
