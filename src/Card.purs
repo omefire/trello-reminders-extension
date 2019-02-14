@@ -180,7 +180,6 @@ modalClass = React.component "Modal" component
             (do
                 eEmails <- (runExceptT $ do
                                user <- getTrelloData trelloID
-                               liftEffect $ Helpers.alert $ "Email: " <> user.email
                                emails <- getEmails user.email
                                pure $ emails)
                 case eEmails of
@@ -218,11 +217,11 @@ modalClass = React.component "Modal" component
                 res <- AX.request ( AX.defaultRequest { url = url, method = Left GET, responseFormat = ResponseFormat.json } )
                 case res.body of
                   Left err -> do
-                    liftEffect $ Helpers.alert $ AX.printResponseFormatError err
+                    -- liftEffect $ Helpers.alert $ AX.printResponseFormatError err
                     pure $ Left $ AX.printResponseFormatError err
 
                   Right json -> do
-                    _ <- liftEffect $ Helpers.alert $ J.stringify json
+                    -- _ <- liftEffect $ Helpers.alert $ J.stringify json
                     case (JSON.readJSON (J.stringify json)) of
                       Left err -> do
                         let errorStr = getErrorString err
