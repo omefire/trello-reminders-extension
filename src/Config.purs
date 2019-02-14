@@ -23,7 +23,9 @@ import Affjax as AX
 
 type Config =  {
   trelloAPIKey :: String,
-  trelloToken :: String
+  trelloToken :: String,
+  webServiceHost :: String,
+  webServicePort :: String
 }
 
 
@@ -45,7 +47,7 @@ getConfig = do
   case res of
     Left err -> pure $ Left err
     Right (config :: Config) -> do
-      liftEffect $ alert config.trelloAPIKey
+      -- liftEffect $ alert config.trelloAPIKey
       pure $ Right config
   --pure $ Right $ { trelloAPIKey: "", trelloToken: "" }
 

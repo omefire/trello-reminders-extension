@@ -181,7 +181,7 @@ modalClass = React.component "Modal" component
                 eEmails <- (runExceptT $ do
                                user <- getTrelloData trelloID
                                liftEffect $ Helpers.alert $ "Email: " <> user.email
-                               emails <- ExceptT $ getEmails user.email
+                               emails <- getEmails user.email
                                pure $ emails)
                 case eEmails of
                   Left err -> throwError $ error err
@@ -191,13 +191,20 @@ modalClass = React.component "Modal" component
               formatEmailsForUI :: Array String -> Array { isChecked :: Boolean, emailValue :: String }
               formatEmailsForUI emails = (flip map) emails $ \e -> { isChecked: false, emailValue: e}
 
-              getEmails :: String -> Aff (Either String (Array String))
+              getEmails :: String -> ExceptT String Aff (Array String)
               getEmails email = do
-                let url = "http://localhost:8081/getEmailsForUser/" <> email
-                res <- AX.get ResponseFormat.json url
-                case res.body of
-                  Left err -> pure $ Left $ AX.printResponseFormatError err
-                  Right json -> pure $ Right $ ["omefire@gmail.com"]
+                config@{ trelloAPIKey, trelloToken, webServiceHost, webServicePort } <- ExceptT getConfig
+                let url = webServiceHost <> ":" <> webServicePort <> "/getEmailsForUser/" <> email
+                emails <- ExceptT $ makeRequest url :: Aff (Either String (Array String))
+                pure emails
+
+              -- getEmails :: String -> Aff (Either String (Array String))
+              -- getEmails email = do
+              --   let url = "http://localhost:8081/getEmailsForUser/" <> email
+              --   res <- AX.get ResponseFormat.json url
+              --   case res.body of
+              --     Left err -> pure $ Left $ AX.printResponseFormatError err
+              --     Right json -> pure $ Right $ ["omefire@gmail.com"]
 
               getTrelloData :: String -> ExceptT String Aff TrelloUser -- String -> Aff (Either String TrelloUser)
               getTrelloData trelloID = do
