@@ -1,0 +1,6 @@
+{
+    "trelloToken":"ENTER_YOUR_TRELLO_TOKEN",
+    "trelloAPIKey":"ENTER_YOUR_TRELLO_API_KEY",
+    "webServiceHost": "http://localhost",
+    "webServicePort": "8081"
+}
