@@ -49,6 +49,13 @@ import Web.HTML (window) as DOM
 import Web.HTML.HTMLDocument (toDocument, body) as DOM
 import Web.HTML.Window (document) as DOM
 
+import Data.Bifunctor
+import Data.List.NonEmpty
+import Data.List.Types
+
+import Config
+
+
 main :: Effect Unit
 main = do
  void $ setInterval 300 $ void $ do
@@ -169,12 +176,13 @@ modalClass = React.component "Modal" component
             case e of
               Left err -> do
                 React.setState that { isLoadingEmails: false, didErrorOccurWhileLoadingEmails: true, errorThatOccuredWhileLoadingEmails: (show err) }
-                -- Helpers.alert $ "Sorry, an error occured while loading emails: " <> show err
 
-              Right emails -> React.setState that { emails: formatEmailsForUI emails, isLoadingEmails: false })
+              Right emails -> React.setState that { emails: formatEmailsForUI emails, isLoadingEmails: false }
+            )
             (do
                 eEmails <- (runExceptT $ do
-                               user <- ExceptT $ getTrelloData trelloID
+                               user <- getTrelloData trelloID
+                               liftEffect $ Helpers.alert $ "Email: " <> user.email
                                emails <- ExceptT $ getEmails user.email
                                pure $ emails)
                 case eEmails of
@@ -193,17 +201,26 @@ modalClass = React.component "Modal" component
                   Left err -> pure $ Left $ AX.printResponseFormatError err
                   Right json -> pure $ Right $ ["omefire@gmail.com"]
 
-              getTrelloData :: String -> Aff (Either String TrelloUser)
+              getTrelloData :: String -> ExceptT String Aff TrelloUser -- String -> Aff (Either String TrelloUser)
               getTrelloData trelloID = do
-                let url = "https://api.trello.com/1/members/" <> trelloID <> "?key=ENTER_TRELLO_KEY" <> "&token=ENTER_TRELLO_TOKEN"
-                res <- AX.get ResponseFormat.json url
+                config@{ trelloAPIKey, trelloToken } <- ExceptT getConfig
+                let url = "https://api.trello.com/1/members/" <> trelloID <> "?key=" <> trelloAPIKey <> "&token=" <> trelloToken
+                trelloUser <- ExceptT $ makeRequest url :: Aff (Either String TrelloUser)
+                pure trelloUser
+
+              makeRequest :: forall a. (JSON.ReadForeign a) => String -> Aff (Either String a)
+              makeRequest url = do
+                res <- AX.request ( AX.defaultRequest { url = url, method = Left GET, responseFormat = ResponseFormat.json } )
                 case res.body of
-                  Left err -> pure $ Left $ AX.printResponseFormatError err
+                  Left err -> do
+                    liftEffect $ Helpers.alert $ AX.printResponseFormatError err
+                    pure $ Left $ AX.printResponseFormatError err
+
                   Right json -> do
-                    let eUser = (JSON.readJSON $ J.stringify json)
-                    case eUser of
-                      Left err2 -> pure $ Left $ "An error occured while parsing JSON."
-                      Right (user :: TrelloUser) ->  pure $ Right user
+                    liftEffect $ Helpers.alert $ J.stringify json
+                    case (JSON.readJSON (J.stringify json)) of
+                      Left err -> pure $ Left $ "An error occured while making a request to URL: " <> url
+                      Right (result) -> pure $ Right result
 
         render state = do
           { name, formErrors, isNameValid, isDescriptionValid, isAtLeastOneEmailSelected, emails, isLoadingEmails, didErrorOccurWhileLoadingEmails, errorThatOccuredWhileLoadingEmails } <- state
