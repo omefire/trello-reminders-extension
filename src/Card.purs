@@ -19,7 +19,7 @@ import Affjax.ResponseFormat as ResponseFormat
 import Control.Monad.Maybe.Trans (runMaybeT, MaybeT(..))
 import Control.Monad.Trans.Class (lift)
 import Control.MonadZero (guard)
-import Data.Argonaut.Core (Json)
+-- import Data.Argonaut.Core (Json)
 import Data.Argonaut.Core as J
 import Data.Array (head, take, filter, (:), findIndex, updateAt, length, (!!))
 import Data.Function (flip)
@@ -51,7 +51,7 @@ import Web.DOM.NodeList (toArray) as NL
 import Web.HTML (window) as DOM
 import Web.HTML.HTMLDocument (toDocument, body) as DOM
 import Web.HTML.Window (document) as DOM
-
+import AJAX (makeRequest) as AJAX
 
 main :: Effect Unit
 main = do
@@ -193,7 +193,7 @@ modalClass = React.component "Modal" component
               getEmails email = do
                 config@{ trelloAPIKey, trelloToken, webServiceHost, webServicePort } <- ExceptT getConfig
                 let url = webServiceHost <> ":" <> webServicePort <> "/getEmailsForUser/" <> email
-                emails <- ExceptT $ makeRequest url :: Aff (Either String (Array String))
+                emails <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String (Array String))
                 pure emails
 
               -- getEmails :: String -> Aff (Either String (Array String))
@@ -208,7 +208,7 @@ modalClass = React.component "Modal" component
               getTrelloData trelloID = do
                 config@{ trelloAPIKey, trelloToken } <- ExceptT getConfig
                 let url = "https://api.trello.com/1/members/" <> trelloID <> "?key=" <> trelloAPIKey <> "&token=" <> trelloToken
-                trelloUser <- ExceptT $ makeRequest url :: Aff (Either String TrelloUser)
+                trelloUser <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String TrelloUser)
                 pure trelloUser
 
         render state = do
@@ -420,10 +420,22 @@ modalClass = React.component "Modal" component
                                     )
                                     (\formData -> do
                                       React.setState this { isNameValid: true, isDescriptionValid: true, formErrors: { errors: [] } }
-
                                       -- Submit data to server via AJAX
-                                      -- runAff_ (\e -> Helpers.alert "test") $ makeReq POST 
-
+                                      runAff_
+                                        (\e -> do
+                                          case e of
+                                            Left err -> Helpers.alert "failure"
+                                            Right res -> Helpers.alert "success"
+                                        )
+                                        (do
+                                          eConfig <- getConfig
+                                          case eConfig of
+                                            Left err -> throwError (error err)
+                                            Right { webServiceHost, webServicePort } -> do
+                                              let url = webServiceHost <> ":" <> webServicePort <> "/createReminder"
+                                              name <- AJAX.makeRequest url POST (Just (J.fromString "{\"name\":\"Omar Mefire\", \"age\":\"12\"}")) :: Aff(Either String { name :: String })
+                                              pure name
+                                        )
                                     )
                                     ( validate now $ { name: name, description: description, emails: emails', jsDate: jsDate } )
 
