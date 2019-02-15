@@ -28,7 +28,7 @@ type Config =  {
   webServicePort :: String
 }
 
-
+-- TODO: Use the same function from the AJAX module
 makeRequest :: forall a. (JSON.ReadForeign a) => String -> Aff (Either String a)
 makeRequest url = do
   res <- AX.request ( AX.defaultRequest { url = url, method = Left GET, responseFormat = ResponseFormat.json } )
