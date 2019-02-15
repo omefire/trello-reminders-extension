@@ -33,7 +33,6 @@ import Effect.Aff (launchAff)
 import Effect.Class (liftEffect)
 import Effect.Console (log, logShow)
 import Effect.Timer (setInterval, setTimeout)
-import Foreign (ForeignError(..), MultipleErrors)
 import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, documentHead, setOnLoad, showModal, show, setTimeout, setInterval, flatpickr, getElementsByClassName) as Helpers
 import Partial.Unsafe (unsafePartial)
 import React as React
@@ -211,33 +210,6 @@ modalClass = React.component "Modal" component
                 let url = "https://api.trello.com/1/members/" <> trelloID <> "?key=" <> trelloAPIKey <> "&token=" <> trelloToken
                 trelloUser <- ExceptT $ makeRequest url :: Aff (Either String TrelloUser)
                 pure trelloUser
-
-              makeRequest :: forall a. (JSON.ReadForeign a) => String -> Aff (Either String a)
-              makeRequest url = do
-                res <- AX.request ( AX.defaultRequest { url = url, method = Left GET, responseFormat = ResponseFormat.json } )
-                case res.body of
-                  Left err -> do
-                    -- liftEffect $ Helpers.alert $ AX.printResponseFormatError err
-                    pure $ Left $ AX.printResponseFormatError err
-
-                  Right json -> do
-                    -- _ <- liftEffect $ Helpers.alert $ J.stringify json
-                    case (JSON.readJSON (J.stringify json)) of
-                      Left err -> do
-                        let errorStr = getErrorString err
-                        pure $ Left $ "An error occured while making a request to URL: " <> url <> ". " <> errorStr
-                      Right (result) -> pure $ Right result
-
-              getErrorString :: NonEmptyList ForeignError -> String
-              getErrorString errors = foldl (\str error ->
-                 addE error str
-              ) "" errors
-
-              addE :: ForeignError -> String -> String
-              addE (ForeignError s) str = s <> ", " <> str
-              addE (TypeMismatch s1 s2) str = s1 <> " : " <> s2 <> ", " <> str
-              addE (ErrorAtIndex i err) str = (show i) <> " : " <> (addE err str)
-              addE (ErrorAtProperty s err) str = s <> " : " <> (addE err str)
 
         render state = do
           { name, formErrors, isNameValid, isDescriptionValid, isAtLeastOneEmailSelected, emails, isLoadingEmails, didErrorOccurWhileLoadingEmails, errorThatOccuredWhileLoadingEmails } <- state
@@ -448,6 +420,9 @@ modalClass = React.component "Modal" component
                                     )
                                     (\formData -> do
                                       React.setState this { isNameValid: true, isDescriptionValid: true, formErrors: { errors: [] } }
+
+                                      -- Submit data to server via AJAX
+                                      -- runAff_ (\e -> Helpers.alert "test") $ makeReq POST 
 
                                     )
                                     ( validate now $ { name: name, description: description, emails: emails', jsDate: jsDate } )
