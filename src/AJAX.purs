@@ -22,7 +22,8 @@ makeRequest url method (Just content) = do
     Left err -> pure $ Left $ AX.printResponseFormatError err
     Right json -> do
       case (JSON.readJSON (J.stringify json)) of
-        Left err -> pure $ Left $ "An error occured while making a request to URL: " <> url
+        Left err -> do
+          pure $ Left $ "An error occured while making a request to URL: " <> url <> (getErrorString err)
         Right (result) -> pure $ Right result
 
 makeRequest url method Nothing = do
@@ -31,7 +32,7 @@ makeRequest url method Nothing = do
     Left err -> pure $ Left $ AX.printResponseFormatError err
     Right json -> do
       case (JSON.readJSON (J.stringify json)) of
-        Left err -> pure $ Left $ "An error occured while making a request to URL: " <> url
+        Left err -> pure $ Left $ "An error occured while making a request to URL: " <> url <> (getErrorString err)
         Right (result) -> pure $ Right result
 
 
