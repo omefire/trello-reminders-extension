@@ -196,14 +196,6 @@ modalClass = React.component "Modal" component
                 emails <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String (Array String))
                 pure emails
 
-              -- getEmails :: String -> Aff (Either String (Array String))
-              -- getEmails email = do
-              --   let url = "http://localhost:8081/getEmailsForUser/" <> email
-              --   res <- AX.get ResponseFormat.json url
-              --   case res.body of
-              --     Left err -> pure $ Left $ AX.printResponseFormatError err
-              --     Right json -> pure $ Right $ ["omefire@gmail.com"]
-
               getTrelloData :: String -> ExceptT String Aff TrelloUser -- String -> Aff (Either String TrelloUser)
               getTrelloData trelloID = do
                 config@{ trelloAPIKey, trelloToken } <- ExceptT getConfig
@@ -433,7 +425,7 @@ modalClass = React.component "Modal" component
                                             Left err -> throwError (error err)
                                             Right { webServiceHost, webServicePort } -> do
                                               let url = webServiceHost <> ":" <> webServicePort <> "/createReminder"
-                                              name <- AJAX.makeRequest url POST (Just (J.fromString "{\"name\":\"Omar Mefire\", \"age\":\"12\"}")) :: Aff(Either String { name :: String })
+                                              name <- AJAX.makeRequest url POST (Just (J.fromString "{\"name\":\"Omar Mefire\", \"age\":\"12\"}")) :: Aff(Either String { name :: String }) -- J.fromObject
                                               pure name
                                         )
                                     )
