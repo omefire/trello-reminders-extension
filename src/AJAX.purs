@@ -14,6 +14,8 @@ import Data.List.NonEmpty
 import Foreign (ForeignError(..), MultipleErrors)
 import Data.Maybe
 import Affjax.RequestBody as ReqBody
+import Effect.Class (liftEffect)
+import Helpers.Card as Helpers
 
 makeRequest :: forall a b. (JSON.ReadForeign a) => String -> Method -> Maybe J.Json -> Aff (Either String a)
 makeRequest url method (Just content) = do
@@ -23,7 +25,7 @@ makeRequest url method (Just content) = do
     Right json -> do
       case (JSON.readJSON (J.stringify json)) of
         Left err -> do
-          pure $ Left $ "An error occured while making a request to URL: " <> url <> (getErrorString err)
+          pure $ Left $ "An error occured while parsing JSON after a request to: " <> url <> ". " <> (getErrorString err)
         Right (result) -> pure $ Right result
 
 makeRequest url method Nothing = do
@@ -31,8 +33,9 @@ makeRequest url method Nothing = do
   case res.body of
     Left err -> pure $ Left $ AX.printResponseFormatError err
     Right json -> do
+      -- _ <- liftEffect $ Helpers.alert $ J.stringify json
       case (JSON.readJSON (J.stringify json)) of
-        Left err -> pure $ Left $ "An error occured while making a request to URL: " <> url <> (getErrorString err)
+        Left err -> pure $ Left $ "An error occured while parsing JSON after a request to: " <> url <> ". " <> (getErrorString err)
         Right (result) -> pure $ Right result
 
 
