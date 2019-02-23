@@ -53,6 +53,8 @@ import Web.HTML.HTMLDocument (toDocument, body) as DOM
 import Web.HTML.Window (document) as DOM
 import AJAX (makeRequest) as AJAX
 
+type UserID = { userID :: Int }
+
 main :: Effect Unit
 main = do
  void $ setInterval 300 $ void $ do
@@ -150,7 +152,7 @@ modalClass = React.component "Modal" component
              state: {
                       name: "",
                       description: "",
-                      emails: [] :: Array ({ emailValue :: String, isChecked :: Boolean }),
+                      emails: [] :: Array ({ emailID :: Int, emailValue :: String, isChecked :: Boolean }),
                       datetime: "",
                       formErrors: { errors: [] } :: FormErrors,
 
@@ -168,7 +170,7 @@ modalClass = React.component "Modal" component
       where
         componentDidMount that = do
           { trelloIDMember: trelloID } <- React.getProps that
-          React.setState that { isLoadingEmails: true }
+          _ <- React.setState that { isLoadingEmails: true }
           runAff_ (\e ->
             case e of
               Left err -> do
@@ -177,26 +179,37 @@ modalClass = React.component "Modal" component
               Right emails -> React.setState that { emails: formatEmailsForUI emails, isLoadingEmails: false }
             )
             (do
-                eEmails <- (runExceptT $ do
-                               user <- getTrelloData trelloID
-                               emails <- getEmails user.email
-                               pure $ emails)
-                case eEmails of
-                  Left err -> throwError $ error err
-                  Right emails -> pure emails
+                -- let a = 1
+                -- pure $ [ { emailID: 1, emailValue: "omefire@gmail.com" } ]
+              eEmails <-  (runExceptT $ do
+                              user <- getTrelloData trelloID
+                              uid <- getUserID user.email
+                              -- _ <- liftEffect $ Helpers.alert $ (show uid)
+                              emails <- getEmails $ uid.userID
+                              pure $ emails) -- [{ emailID: 1, emailValue: "omefire@gmail.com" }])
+              case eEmails of
+                   Left err -> throwError $ error err
+                   Right emails -> pure $ emails --[{ emailID: 1, emailValue: "omefire@gmail.com" }]
             )
             where
-              formatEmailsForUI :: Array String -> Array { isChecked :: Boolean, emailValue :: String }
-              formatEmailsForUI emails = (flip map) emails $ \e -> { isChecked: false, emailValue: e}
+              formatEmailsForUI :: Array { emailID :: Int, emailValue :: String } -> Array { emailID :: Int, emailValue :: String, isChecked :: Boolean }
+              formatEmailsForUI emails = (flip map) emails $ \e -> { emailID: e.emailID, isChecked: false, emailValue: e.emailValue }
 
-              getEmails :: String -> ExceptT String Aff (Array String)
-              getEmails email = do
+              getUserID :: String -> ExceptT String Aff UserID
+              getUserID email = do
                 config@{ trelloAPIKey, trelloToken, webServiceHost, webServicePort } <- ExceptT getConfig
-                let url = webServiceHost <> ":" <> webServicePort <> "/getEmailsForUser/" <> email
-                emails <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String (Array String))
+                let url = webServiceHost <> ":" <> webServicePort <> "/getUserIDForEmail/" <> email
+                userID <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String UserID)
+                pure userID
+
+              getEmails :: Int -> ExceptT String Aff (Array { emailID :: Int, emailValue :: String })
+              getEmails userid = do
+                config@{ trelloAPIKey, trelloToken, webServiceHost, webServicePort } <- ExceptT getConfig
+                let url = webServiceHost <> ":" <> webServicePort <> "/getEmailsForUser/" <> (show userid)
+                emails <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String (Array { emailID :: Int, emailValue :: String })) -- { emailValue :: String, isChecked :: Boolean }
                 pure emails
 
-              getTrelloData :: String -> ExceptT String Aff TrelloUser -- String -> Aff (Either String TrelloUser)
+              getTrelloData :: String -> ExceptT String Aff TrelloUser
               getTrelloData trelloID = do
                 config@{ trelloAPIKey, trelloToken } <- ExceptT getConfig
                 let url = "https://api.trello.com/1/members/" <> trelloID <> "?key=" <> trelloAPIKey <> "&token=" <> trelloToken
@@ -573,7 +586,9 @@ displayEmails that isLoadingEmails emails
             Props.onInput $ \ evt -> do
               let emails' = ((flip map) emails $ \ e ->
                               if e.emailValue == email.emailValue then { emailValue: email.emailValue,
-                                                                         isChecked: (not e.isChecked) } else e
+                                                                         isChecked: (not e.isChecked),
+                                                                         emailID: email.emailID
+                                                                       } else e
                             )
               React.setState that { emails: emails' }
           ],
