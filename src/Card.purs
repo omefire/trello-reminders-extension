@@ -179,17 +179,14 @@ modalClass = React.component "Modal" component
               Right emails -> React.setState that { emails: formatEmailsForUI emails, isLoadingEmails: false }
             )
             (do
-                -- let a = 1
-                -- pure $ [ { emailID: 1, emailValue: "omefire@gmail.com" } ]
               eEmails <-  (runExceptT $ do
                               user <- getTrelloData trelloID
                               uid <- getUserID user.email
-                              -- _ <- liftEffect $ Helpers.alert $ (show uid)
                               emails <- getEmails $ uid.userID
-                              pure $ emails) -- [{ emailID: 1, emailValue: "omefire@gmail.com" }])
+                              pure $ emails)
               case eEmails of
                    Left err -> throwError $ error err
-                   Right emails -> pure $ emails --[{ emailID: 1, emailValue: "omefire@gmail.com" }]
+                   Right emails -> pure $ emails
             )
             where
               formatEmailsForUI :: Array { emailID :: Int, emailValue :: String } -> Array { emailID :: Int, emailValue :: String, isChecked :: Boolean }
@@ -206,7 +203,7 @@ modalClass = React.component "Modal" component
               getEmails userid = do
                 config@{ trelloAPIKey, trelloToken, webServiceHost, webServicePort } <- ExceptT getConfig
                 let url = webServiceHost <> ":" <> webServicePort <> "/getEmailsForUser/" <> (show userid)
-                emails <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String (Array { emailID :: Int, emailValue :: String })) -- { emailValue :: String, isChecked :: Boolean }
+                emails <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String (Array { emailID :: Int, emailValue :: String }))
                 pure emails
 
               getTrelloData :: String -> ExceptT String Aff TrelloUser
