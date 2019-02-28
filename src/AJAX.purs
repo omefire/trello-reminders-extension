@@ -29,7 +29,7 @@ makeRequest url method (Just content) = do
       -- TODO: What if JSON.readJSON throws an exception? Would we correctly display it to the user for ease of debugging by the dev?
       case (JSON.readJSON $ J.stringify(json_)) of
         Left err -> do
-          liftEffect $ Helpers.alert $ J.stringify(json_)
+          -- liftEffect $ Helpers.alert $ J.stringify(json_)
           pure $ Left $ "An error occured while parsing JSON after a request to: " <> url <> ". " <> (getErrorString err) <> ". Data returned from the server: " <> (J.stringify json_)
         Right (result) -> pure $ Right result
 
