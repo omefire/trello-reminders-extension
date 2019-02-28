@@ -19,7 +19,7 @@ import Affjax.ResponseFormat as ResponseFormat
 import Control.Monad.Maybe.Trans (runMaybeT, MaybeT(..))
 import Control.Monad.Trans.Class (lift)
 import Control.MonadZero (guard)
-import Data.Argonaut.Core (Json)
+-- import Data.Argonaut.Core (Json)
 import Data.Argonaut.Core as J
 import Data.Array (head, take, filter, (:), findIndex, updateAt, length, (!!))
 import Data.Function (flip)
@@ -33,7 +33,6 @@ import Effect.Aff (launchAff)
 import Effect.Class (liftEffect)
 import Effect.Console (log, logShow)
 import Effect.Timer (setInterval, setTimeout)
-import Foreign (ForeignError(..), MultipleErrors)
 import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, documentHead, setOnLoad, showModal, show, setTimeout, setInterval, flatpickr, getElementsByClassName) as Helpers
 import Partial.Unsafe (unsafePartial)
 import React as React
@@ -52,7 +51,9 @@ import Web.DOM.NodeList (toArray) as NL
 import Web.HTML (window) as DOM
 import Web.HTML.HTMLDocument (toDocument, body) as DOM
 import Web.HTML.Window (document) as DOM
+import AJAX (makeRequest) as AJAX
 
+type UserID = { userID :: Int }
 
 main :: Effect Unit
 main = do
@@ -151,7 +152,7 @@ modalClass = React.component "Modal" component
              state: {
                       name: "",
                       description: "",
-                      emails: [] :: Array ({ emailValue :: String, isChecked :: Boolean }),
+                      emails: [] :: Array ({ emailID :: Int, emailValue :: String, isChecked :: Boolean }),
                       datetime: "",
                       formErrors: { errors: [] } :: FormErrors,
 
@@ -169,7 +170,7 @@ modalClass = React.component "Modal" component
       where
         componentDidMount that = do
           { trelloIDMember: trelloID } <- React.getProps that
-          React.setState that { isLoadingEmails: true }
+          _ <- React.setState that { isLoadingEmails: true }
           runAff_ (\e ->
             case e of
               Left err -> do
@@ -178,66 +179,39 @@ modalClass = React.component "Modal" component
               Right emails -> React.setState that { emails: formatEmailsForUI emails, isLoadingEmails: false }
             )
             (do
-                eEmails <- (runExceptT $ do
-                               user <- getTrelloData trelloID
-                               emails <- getEmails user.email
-                               pure $ emails)
-                case eEmails of
-                  Left err -> throwError $ error err
-                  Right emails -> pure emails
+              eEmails <-  (runExceptT $ do
+                              user <- getTrelloData trelloID
+                              uid <- getUserID user.email
+                              emails <- getEmails $ uid.userID
+                              pure $ emails)
+              case eEmails of
+                   Left err -> throwError $ error err
+                   Right emails -> pure $ emails
             )
             where
-              formatEmailsForUI :: Array String -> Array { isChecked :: Boolean, emailValue :: String }
-              formatEmailsForUI emails = (flip map) emails $ \e -> { isChecked: false, emailValue: e}
+              formatEmailsForUI :: Array { emailID :: Int, emailValue :: String } -> Array { emailID :: Int, emailValue :: String, isChecked :: Boolean }
+              formatEmailsForUI emails = (flip map) emails $ \e -> { emailID: e.emailID, isChecked: false, emailValue: e.emailValue }
 
-              getEmails :: String -> ExceptT String Aff (Array String)
-              getEmails email = do
+              getUserID :: String -> ExceptT String Aff UserID
+              getUserID email = do
                 config@{ trelloAPIKey, trelloToken, webServiceHost, webServicePort } <- ExceptT getConfig
-                let url = webServiceHost <> ":" <> webServicePort <> "/getEmailsForUser/" <> email
-                emails <- ExceptT $ makeRequest url :: Aff (Either String (Array String))
+                let url = webServiceHost <> ":" <> webServicePort <> "/getUserIDForEmail/" <> email
+                userID <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String UserID)
+                pure userID
+
+              getEmails :: Int -> ExceptT String Aff (Array { emailID :: Int, emailValue :: String })
+              getEmails userid = do
+                config@{ trelloAPIKey, trelloToken, webServiceHost, webServicePort } <- ExceptT getConfig
+                let url = webServiceHost <> ":" <> webServicePort <> "/getEmailsForUser/" <> (show userid)
+                emails <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String (Array { emailID :: Int, emailValue :: String }))
                 pure emails
 
-              -- getEmails :: String -> Aff (Either String (Array String))
-              -- getEmails email = do
-              --   let url = "http://localhost:8081/getEmailsForUser/" <> email
-              --   res <- AX.get ResponseFormat.json url
-              --   case res.body of
-              --     Left err -> pure $ Left $ AX.printResponseFormatError err
-              --     Right json -> pure $ Right $ ["omefire@gmail.com"]
-
-              getTrelloData :: String -> ExceptT String Aff TrelloUser -- String -> Aff (Either String TrelloUser)
+              getTrelloData :: String -> ExceptT String Aff TrelloUser
               getTrelloData trelloID = do
                 config@{ trelloAPIKey, trelloToken } <- ExceptT getConfig
                 let url = "https://api.trello.com/1/members/" <> trelloID <> "?key=" <> trelloAPIKey <> "&token=" <> trelloToken
-                trelloUser <- ExceptT $ makeRequest url :: Aff (Either String TrelloUser)
+                trelloUser <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String TrelloUser)
                 pure trelloUser
-
-              makeRequest :: forall a. (JSON.ReadForeign a) => String -> Aff (Either String a)
-              makeRequest url = do
-                res <- AX.request ( AX.defaultRequest { url = url, method = Left GET, responseFormat = ResponseFormat.json } )
-                case res.body of
-                  Left err -> do
-                    -- liftEffect $ Helpers.alert $ AX.printResponseFormatError err
-                    pure $ Left $ AX.printResponseFormatError err
-
-                  Right json -> do
-                    -- _ <- liftEffect $ Helpers.alert $ J.stringify json
-                    case (JSON.readJSON (J.stringify json)) of
-                      Left err -> do
-                        let errorStr = getErrorString err
-                        pure $ Left $ "An error occured while making a request to URL: " <> url <> ". " <> errorStr
-                      Right (result) -> pure $ Right result
-
-              getErrorString :: NonEmptyList ForeignError -> String
-              getErrorString errors = foldl (\str error ->
-                 addE error str
-              ) "" errors
-
-              addE :: ForeignError -> String -> String
-              addE (ForeignError s) str = s <> ", " <> str
-              addE (TypeMismatch s1 s2) str = s1 <> " : " <> s2 <> ", " <> str
-              addE (ErrorAtIndex i err) str = (show i) <> " : " <> (addE err str)
-              addE (ErrorAtProperty s err) str = s <> " : " <> (addE err str)
 
         render state = do
           { name, formErrors, isNameValid, isDescriptionValid, isAtLeastOneEmailSelected, emails, isLoadingEmails, didErrorOccurWhileLoadingEmails, errorThatOccuredWhileLoadingEmails } <- state
@@ -448,7 +422,22 @@ modalClass = React.component "Modal" component
                                     )
                                     (\formData -> do
                                       React.setState this { isNameValid: true, isDescriptionValid: true, formErrors: { errors: [] } }
-
+                                      -- Submit data to server via AJAX
+                                      runAff_
+                                        (\e -> do
+                                          case e of
+                                            Left err -> Helpers.alert "failure"
+                                            Right res -> Helpers.alert "success"
+                                        )
+                                        (do
+                                          eConfig <- getConfig
+                                          case eConfig of
+                                            Left err -> throwError (error err)
+                                            Right { webServiceHost, webServicePort } -> do
+                                              let url = webServiceHost <> ":" <> webServicePort <> "/createReminder"
+                                              name <- AJAX.makeRequest url POST (Just (J.fromString "{\"name\":\"Omar Mefire\", \"age\":\"12\"}")) :: Aff(Either String { name :: String }) -- J.fromObject
+                                              pure name
+                                        )
                                     )
                                     ( validate now $ { name: name, description: description, emails: emails', jsDate: jsDate } )
 
@@ -594,7 +583,9 @@ displayEmails that isLoadingEmails emails
             Props.onInput $ \ evt -> do
               let emails' = ((flip map) emails $ \ e ->
                               if e.emailValue == email.emailValue then { emailValue: email.emailValue,
-                                                                         isChecked: (not e.isChecked) } else e
+                                                                         isChecked: (not e.isChecked),
+                                                                         emailID: email.emailID
+                                                                       } else e
                             )
               React.setState that { emails: emails' }
           ],
