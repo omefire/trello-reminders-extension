@@ -23,7 +23,7 @@ exports._nextSibling = function(elt) {
 
 exports.alert = function(obj) {
     return function() {
-	alert(JSON.stringify(obj));
+	    alert(obj);
     }
 }
 
