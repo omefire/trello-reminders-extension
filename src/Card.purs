@@ -37,7 +37,7 @@ import Effect.Aff (launchAff)
 import Effect.Class (liftEffect)
 import Effect.Console (log, logShow)
 import Effect.Timer (setInterval, setTimeout)
-import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, documentHead, setOnLoad, showModal, show, setTimeout, setInterval, flatpickr, getElementsByClassName) as Helpers
+import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, documentHead, setOnLoad, showModal, show, setTimeout, setInterval, flatpickr, getElementsByClassName, showBootstrapModal, hideBootstrapModal) as Helpers
 import Partial.Unsafe (unsafePartial)
 import React as React
 import React.DOM (text, a, div, div', h5, span, i, span', img, form', form, fieldset', label', dialog, button', button, select', option', label, input, ul, li, p, table, tbody, tr', td', tr, br') as DOM
@@ -425,6 +425,8 @@ modalClass = React.component "Modal" component
                               [
                                 Props._type "button",
                                 Props.className "btn btn-primary",
+                                -- Props.unsafeMkProps "data-toggle" "modal",
+                                -- Props.unsafeMkProps "data-target" "#loadingModal",
                                 -- Props.unsafeMkProps "data-dismiss" "modal",
                                 -- TODO: Validate every other field as well (when user clicks on submit button)
                                 Props.onClick $ \ evt -> do
@@ -456,11 +458,19 @@ modalClass = React.component "Modal" component
                                       runAff_
                                         (\e -> do
                                           case e of
-                                            Left err -> Helpers.alert $ "Sorry, an error occured while creating the reminder: " <> (show err)
+                                            Left err -> do
+                                              _ <- Helpers.hideBootstrapModal "#loadingModal"
+                                              _ <- Helpers.alert $ "Sorry, an error occured while creating the reminder: " <> (show err)
+                                              _ <- Helpers.hideBootstrapModal "#setreminderModal"
+                                              pure unit
                                             Right res -> do
-                                              Helpers.alert $ "Success: " <> (show res)
+                                              _ <- Helpers.hideBootstrapModal "#loadingModal"
+                                              _ <- Helpers.alert $ "Your reminder was successfully created!"
+                                              _ <- Helpers.hideBootstrapModal "#setreminderModal"
+                                              pure unit
                                         )
                                         (do
+                                          _ <- liftEffect $ Helpers.showBootstrapModal "#loadingModal"
                                           res <- runExceptT $ do
                                                    { webServiceHost, webServicePort } <- ExceptT getConfig
                                                    user <- (case mUserID of
@@ -507,7 +517,7 @@ setReminderClass = React.component "Main" component
         mElt <- Helpers.getFirstElementByClassName "modal-backdrop" doc
         case mElt of
           Nothing -> pure unit
-          Just elt -> DOM.setAttribute "class" "fade in" elt
+          Just elt -> DOM.setAttribute "class" "fade in" elt -- Note: It was "modal-backdrop fade in" before.
 
       render that = do
         { htmlDoc: doc, trelloIDMember: idmember } <- React.getProps that
@@ -525,9 +535,70 @@ setReminderClass = React.component "Main" component
             ]
             [ DOM.text "Set a reminder" ],
 
-            React.createLeafElement modalClass { trelloIDMember: idmember }
+            React.createLeafElement modalClass { trelloIDMember: idmember },
+            React.createLeafElement loadingModalClass { }
           ]
 
+-- The modal that gets displayed on top of our form modal
+-- Used to signify to the user that the process for creating a new reminder is still running, for example
+-- https://stackoverflow.com/questions/48228724/centered-modal-load-spinner-bootstrap-4
+-- https://codepen.io/devwax/pen/Homjb
+loadingModalClass :: React.ReactClass { }
+loadingModalClass = React.component "LoadingModal" component
+  where
+  component this =
+    pure {
+           render: render this
+         }
+    where
+      render that = do
+        pure $
+          DOM.div
+          [
+            Props.className "modal fade bd-example-modal-lg",
+            Props._id "loadingModal",
+            Props.unsafeMkProps "aria-labelledby" "loadingModalCenterTitle",
+            Props.unsafeMkProps "aria-hidden" "true"
+          ]
+          [
+            DOM.div
+            [
+              Props.className "modal-dialog modal-sm",
+              Props.role "document"
+            ]
+            [
+              DOM.div
+              [
+                Props.className "modal-content"
+              ]
+              [
+                DOM.span
+                [
+                  Props.className "spinner"
+                ]
+                [
+                  DOM.span
+                  [
+                    Props.className "bar bar1"
+                  ]
+                  [
+                  ],
+                  DOM.span
+                  [
+                    Props.className "bar bar2"
+                  ]
+                  [
+                  ],
+                  DOM.span
+                  [
+                    Props.className "bar bar3"
+                  ]
+                  [
+                  ]
+                ]
+              ]
+            ]
+          ]
 
 
 -- ====== Validation ======== --
