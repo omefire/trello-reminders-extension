@@ -472,7 +472,7 @@ modalClass = React.component "Modal" component
                                                                            , reminderName: name
                                                                            , reminderDescription: description
                                                                            , reminderDateTime: jsDateISOStr
-                                                                           , reminderEmails: (filter (\eml -> eml.isChecked) emails )
+                                                                           , reminderEmails: ( filter (\eml -> eml.isChecked) emails )
                                                                            , reminderUserID: (user.userID)
                                                                            }
                                                    newReminderID <- ExceptT $ ( AJAX.makeRequest url POST (Just (encodeJson reminder)) :: Aff (Either String Int) )
