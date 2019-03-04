@@ -207,7 +207,11 @@ modalClass = React.component "Modal" component
             (do
               eEmails <-  (runExceptT $ do
                               user <- getTrelloData trelloID
-                              id <- getUserID user.email
+                              id <- (case user.email of
+                                        Nothing -> throwError "According to Trello, There is no email address associated to this user"
+                                        Just email -> getUserID email
+                                    )
+                              -- id <- getUserID $ unsafePartial $ fromJust user.email
                               _ <- liftEffect $ React.setState that { mTrelloUser: Just user, mUserID: (Just id) }
                               emails <- getEmails id.userID
                               pure $ emails)
@@ -660,7 +664,7 @@ validate now values =
 type TrelloUser =
  {
    id :: String,
-   email :: String,
+   email :: Maybe String,
    username :: String,
    fullName :: String
  }
