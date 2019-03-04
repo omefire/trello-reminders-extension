@@ -437,7 +437,6 @@ modalClass = React.component "Modal" component
                                    let dateString = (unsafeCoerce elt).value
 
                                    jsDate <- JSDate.parse dateString
-                                   jsDateISOStr <- JSDate.toISOString jsDate
                                    now <- JSDate.now
                                    { name, description, emails, datetime, mTrelloUser, mUserID } <- React.getState this
                                    let emails' = map (\email -> email.emailValue) $ filter (\email -> email.isChecked == true) emails
@@ -452,6 +451,7 @@ modalClass = React.component "Modal" component
                                     )
                                     (\formData -> do
                                       React.setState this { isNameValid: true, isDescriptionValid: true, formErrors: { errors: [] } }
+                                      jsDateISOStr <- JSDate.toISOString jsDate
 
                                       -- Submit data to server via AJAX
                                       -- TODO: https://stackoverflow.com/questions/48228724/centered-modal-load-spinner-bootstrap-4
