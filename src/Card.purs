@@ -4,7 +4,11 @@ module Main where -- Card where
 import Affjax.ResponseFormat
 import Config
 import Control.Monad.Except.Trans
+import Data.Argonaut
+import Data.Argonaut.JSONDateTime
 import Data.Bifunctor
+import Data.Date
+import Data.Date.Component
 import Data.DateTime
 import Data.Either
 import Data.List.NonEmpty
@@ -14,12 +18,12 @@ import Data.Validation.Semigroup
 import Effect.Aff
 import Prelude
 
+import AJAX (makeRequest) as AJAX
 import Affjax as AX
 import Affjax.ResponseFormat as ResponseFormat
 import Control.Monad.Maybe.Trans (runMaybeT, MaybeT(..))
 import Control.Monad.Trans.Class (lift)
 import Control.MonadZero (guard)
--- import Data.Argonaut.Core (Json)
 import Data.Argonaut.Core as J
 import Data.Array (head, take, filter, (:), findIndex, updateAt, length, (!!))
 import Data.Function (flip)
@@ -51,9 +55,29 @@ import Web.DOM.NodeList (toArray) as NL
 import Web.HTML (window) as DOM
 import Web.HTML.HTMLDocument (toDocument, body) as DOM
 import Web.HTML.Window (document) as DOM
-import AJAX (makeRequest) as AJAX
+import Data.Identity
 
+-- Used to get the UserID back from /getUserIDForEmail call
 type UserID = { userID :: Int }
+
+-- Used to convert to JSON, then include in POST request to /createReminder call
+newtype Reminder = Reminder
+  { reminderID :: Int
+  , reminderName :: String
+  , reminderDescription :: String
+  , reminderDateTime :: JSONDateTime
+  , reminderEmails :: Array { emailID :: Int, emailValue :: String }
+  , reminderUserID :: Int
+  }
+
+instance encodeJsonReminder :: EncodeJson Reminder where
+  encodeJson (Reminder reminder)
+    =   "reminderID" := reminder.reminderID
+    ~>  "reminderName" := reminder.reminderName
+    ~>  "reminderDescription" := reminder.reminderDescription
+    ~>  "reminderDateTime" := reminder.reminderDateTime
+    ~>  "reminderEmails" := reminder.reminderEmails
+    ~>  "reminderUserID" := reminder.reminderUserID
 
 main :: Effect Unit
 main = do
@@ -162,7 +186,9 @@ modalClass = React.component "Modal" component
                       isFormValid: false,
                       isLoadingEmails: false,
                       didErrorOccurWhileLoadingEmails: false,
-                      errorThatOccuredWhileLoadingEmails: ""
+                      errorThatOccuredWhileLoadingEmails: "",
+                      mTrelloUser: Nothing :: Maybe TrelloUser,
+                      mUserID: Nothing :: Maybe UserID
                     },
              componentDidMount: componentDidMount this,
              render: render $ React.getState this
@@ -181,8 +207,9 @@ modalClass = React.component "Modal" component
             (do
               eEmails <-  (runExceptT $ do
                               user <- getTrelloData trelloID
-                              uid <- getUserID user.email
-                              emails <- getEmails $ uid.userID
+                              id <- getUserID user.email
+                              _ <- liftEffect $ React.setState that { mTrelloUser: Just user, mUserID: (Just id) }
+                              emails <- getEmails id.userID
                               pure $ emails)
               case eEmails of
                    Left err -> throwError $ error err
@@ -408,8 +435,9 @@ modalClass = React.component "Modal" component
                                    let dateString = (unsafeCoerce elt).value
 
                                    jsDate <- JSDate.parse dateString
+                                   jsDateISOStr <- JSDate.toISOString jsDate
                                    now <- JSDate.now
-                                   { name, description, emails, datetime } <- React.getState this
+                                   { name, description, emails, datetime, mTrelloUser, mUserID } <- React.getState this
                                    let emails' = map (\email -> email.emailValue) $ filter (\email -> email.isChecked == true) emails
 
                                    unV
@@ -422,21 +450,36 @@ modalClass = React.component "Modal" component
                                     )
                                     (\formData -> do
                                       React.setState this { isNameValid: true, isDescriptionValid: true, formErrors: { errors: [] } }
+
                                       -- Submit data to server via AJAX
+                                      -- TODO: https://stackoverflow.com/questions/48228724/centered-modal-load-spinner-bootstrap-4
                                       runAff_
                                         (\e -> do
                                           case e of
-                                            Left err -> Helpers.alert "failure"
-                                            Right res -> Helpers.alert "success"
+                                            Left err -> Helpers.alert $ "Sorry, an error occured while creating the reminder: " <> (show err)
+                                            Right res -> do
+                                              Helpers.alert $ "Success: " <> (show res)
                                         )
                                         (do
-                                          eConfig <- getConfig
-                                          case eConfig of
-                                            Left err -> throwError (error err)
-                                            Right { webServiceHost, webServicePort } -> do
-                                              let url = webServiceHost <> ":" <> webServicePort <> "/createReminder"
-                                              name <- AJAX.makeRequest url POST (Just (J.fromString "{\"name\":\"Omar Mefire\", \"age\":\"12\"}")) :: Aff(Either String { name :: String }) -- J.fromObject
-                                              pure name
+                                          res <- runExceptT $ do
+                                                   { webServiceHost, webServicePort } <- ExceptT getConfig
+                                                   user <- (case mUserID of
+                                                             Nothing -> throwError "An error occured while retrieving this user's trello data"
+                                                             Just u -> pure u
+                                                           )
+                                                   let url = webServiceHost <> ":" <> webServicePort <> "/createReminder"
+                                                   let reminder =          { reminderID: -1 -- The server will assign a proper ID
+                                                                           , reminderName: name
+                                                                           , reminderDescription: description
+                                                                           , reminderDateTime: jsDateISOStr
+                                                                           , reminderEmails: ( filter (\eml -> eml.isChecked) emails )
+                                                                           , reminderUserID: (user.userID)
+                                                                           }
+                                                   newReminderID <- ExceptT $ ( AJAX.makeRequest url POST (Just (encodeJson reminder)) :: Aff (Either String Int) )
+                                                   pure newReminderID
+                                          case res of
+                                            Left err -> throwError $ error err
+                                            Right reminderId -> pure reminderId
                                         )
                                     )
                                     ( validate now $ { name: name, description: description, emails: emails', jsDate: jsDate } )
