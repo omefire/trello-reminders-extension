@@ -1,5 +1,6 @@
 module Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, URL, alert, getElementById, documentHead, setOnLoad,
-                     JQuery, JQueryDialog, showModal, show, setTimeout, setInterval, flatpickr, getElementsByClassName) where
+                     JQuery, JQueryDialog, showModal, show, setTimeout, setInterval, flatpickr, getElementsByClassName, showBootstrapModal,
+                     hideBootstrapModal) where
 
 import Prelude
 
@@ -77,3 +78,7 @@ setInterval ms fn  = _setInterval fn ms
 foreign import _flatpickr :: forall r. String -> { | r } -> Effect Unit
 flatpickr :: forall r. String -> { | r } -> Effect Unit
 flatpickr selector config = _flatpickr selector config
+
+
+foreign import showBootstrapModal :: String -> Effect Unit
+foreign import hideBootstrapModal :: String -> Effect Unit

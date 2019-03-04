@@ -1,0 +1,77 @@
+@-webkit-keyframes spinnerframes {
+  0%    { height: 25%; }
+  50%   { height: 40%; }
+  100%  { height: 100%; }
+}
+
+@keyframes spinnerframes {
+  0%    { height: 25%; }
+  50%   { height: 40%; }
+  100%  { height: 100%; }
+}
+
+.spinner {
+  display: block;
+  margin: 50px auto;
+  position: relative;
+  height: 18px;
+  width: 18px;
+}
+
+.spinner.large {
+  height: 32px;
+  width: 32px;
+}
+
+.spinner .bar {
+  border-radius: 2px;
+  background: hsl(0, 0%, 83%);
+  display: block;
+  width: 30%;
+  position: absolute;
+  height: 0;
+
+  -webkit-animation-name: spinnerframes;
+  -webkit-animation-direction: alternate;
+  -webkit-animation-duration: 0.35s;
+  -webkit-animation-timing-function: linear;
+  -webkit-animation-iteration-count: infinite;
+
+  animation-name: spinnerframes;
+  animation-direction: alternate;
+  animation-duration: 0.35s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.spinner .bar.bar1 {
+  top: 0;
+  left: 0;
+}
+
+.spinner .bar.bar2 {
+  top: 0;
+  left: 35%;
+  -webkit-animation-delay:  0.1s;
+  animation-delay:          0.1s;
+}
+
+.spinner .bar.bar3 {
+  top: 0;
+  left: 70%;
+  -webkit-animation-delay:  0.2s;
+  animation-delay:          0.2s;
+}
+
+
+.bd-example-modal-lg .modal-dialog .modal-content {
+    background-color: transparent;
+    border: none;
+}
+
+.bd-example-modal-lg .modal-dialog{
+    display: table;
+    position: relative;
+    margin: 0 auto;
+    top: calc(50% - 24px);
+}
