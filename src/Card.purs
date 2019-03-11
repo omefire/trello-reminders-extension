@@ -211,7 +211,6 @@ modalClass = React.component "Modal" component
                                         Nothing -> throwError "According to Trello, There is no email address associated to this user"
                                         Just email -> getUserID email
                                     )
-                              -- id <- getUserID $ unsafePartial $ fromJust user.email
                               _ <- liftEffect $ React.setState that { mTrelloUser: Just user, mUserID: (Just id) }
                               emails <- getEmails id.userID
                               pure $ emails)
@@ -225,22 +224,22 @@ modalClass = React.component "Modal" component
 
               getUserID :: String -> ExceptT String Aff UserID
               getUserID email = do
-                config@{ trelloAPIKey, trelloToken, webServiceHost, webServicePort } <- ExceptT getConfig
+                config@{ trelloAPIKey, webServiceHost, webServicePort } <- ExceptT getConfig
                 let url = webServiceHost <> ":" <> webServicePort <> "/getUserIDForEmail/" <> email
                 userID <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String UserID)
                 pure userID
 
               getEmails :: Int -> ExceptT String Aff (Array { emailID :: Int, emailValue :: String })
               getEmails userid = do
-                config@{ trelloAPIKey, trelloToken, webServiceHost, webServicePort } <- ExceptT getConfig
+                config@{ trelloAPIKey, webServiceHost, webServicePort } <- ExceptT getConfig
                 let url = webServiceHost <> ":" <> webServicePort <> "/getEmailsForUser/" <> (show userid)
                 emails <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String (Array { emailID :: Int, emailValue :: String }))
                 pure emails
 
               getTrelloData :: String -> ExceptT String Aff TrelloUser
               getTrelloData trelloID = do
-                config@{ trelloAPIKey, trelloToken } <- ExceptT getConfig
-                let url = "https://api.trello.com/1/members/" <> trelloID <> "?key=" <> trelloAPIKey <> "&token=" <> trelloToken
+                config@{ trelloAPIKey } <- ExceptT getConfig
+                let url = "https://api.trello.com/1/members/" <> trelloID <> "?key=" <> trelloAPIKey -- <> "&token=" <> trelloToken
                 trelloUser <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String TrelloUser)
                 pure trelloUser
 
