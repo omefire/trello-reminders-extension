@@ -11,6 +11,7 @@ import Data.Date
 import Data.Date.Component
 import Data.DateTime
 import Data.Either
+import Data.Identity
 import Data.List.NonEmpty
 import Data.List.Types
 import Data.Maybe
@@ -55,7 +56,7 @@ import Web.DOM.NodeList (toArray) as NL
 import Web.HTML (window) as DOM
 import Web.HTML.HTMLDocument (toDocument, body) as DOM
 import Web.HTML.Window (document) as DOM
-import Data.Identity
+import API.Trello (authorize) as Trello
 
 -- Used to get the UserID back from /getUserIDForEmail call
 type UserID = { userID :: Int }
@@ -106,7 +107,6 @@ tryDisplay = do
 
       -- Do NOT display button if we are not in the context of a Card (we check this by verifying the URL)
       _ <- MaybeT $ pure $ Helpers.getCardIdFromUrl url
-
 
       -- Grab the Trello's idmember belonging to this user
       memberDivElt <- MaybeT $ Helpers.getFirstElementByClassName "member js-show-mem-menu" document
@@ -208,7 +208,7 @@ modalClass = React.component "Modal" component
               eEmails <-  (runExceptT $ do
                               user <- getTrelloData trelloID
                               id <- (case user.email of
-                                        Nothing -> throwError "According to Trello, There is no email address associated to this user"
+                                        Nothing -> throwError $ "There is no email address associated to this user. \n" <> "Please, contact us at info@trelloreminders.com"
                                         Just email -> getUserID email
                                     )
                               _ <- liftEffect $ React.setState that { mTrelloUser: Just user, mUserID: (Just id) }
@@ -221,6 +221,13 @@ modalClass = React.component "Modal" component
             where
               formatEmailsForUI :: Array { emailID :: Int, emailValue :: String } -> Array { emailID :: Int, emailValue :: String, isChecked :: Boolean }
               formatEmailsForUI emails = (flip map) emails $ \e -> { emailID: e.emailID, isChecked: false, emailValue: e.emailValue }
+
+              -- authorize :: ExceptT String Aff Unit
+              -- authorize = do
+              --   config@{ trelloAPIKey, trelloToken } <- ExceptT getConfig
+              --   let url = "https://trello.com/1/authorize?expiration=never&scope=read,write,account&response_type=token&name=Server%20Token&key=cda83ba306e0f05684bf81cb6fd201b9"
+              --   _ <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String Unit)
+              --   pure unit
 
               getUserID :: String -> ExceptT String Aff UserID
               getUserID email = do
@@ -513,7 +520,11 @@ setReminderClass = React.component "Main" component
   where
   component this =
     pure {
-            render: render this
+            state: {
+                     trelloToken: Nothing :: Maybe String
+                   },
+            render: render this,
+            componentDidMount: componentDidMount this
          }
     where
       removeModalBackdrop doc = do
@@ -521,6 +532,23 @@ setReminderClass = React.component "Main" component
         case mElt of
           Nothing -> pure unit
           Just elt -> DOM.setAttribute "class" "fade in" elt -- Note: It was "modal-backdrop fade in" before.
+
+      componentDidMount that = do
+        { htmlDoc: doc, trelloIDMember: idmember } <- React.getProps that
+        runAff_
+          (\e ->
+             case e of
+               Left err -> Helpers.alert $ "An error occured while retrieving your Trello token: " <> (show err)
+               Right r -> pure unit -- Helpers.alert $ "Success: " <> (show r)
+          )
+          (do
+            trelloToken <- getTrelloToken idmember
+            liftEffect $ React.setState that { trelloToken: trelloToken }
+          )
+       where
+         getTrelloToken :: String -> Aff (Maybe String)
+         getTrelloToken id = do
+           pure $ Nothing -- Just "abcd"
 
       render that = do
         { htmlDoc: doc, trelloIDMember: idmember } <- React.getProps that
@@ -530,22 +558,130 @@ setReminderClass = React.component "Main" component
             DOM.span
             [
               Props.onClick $ \evt -> do
-                 Helpers.setTimeout 500 $ do -- TODO: Couldn't this fail? Should we just keep doing it until it succeeds and then stop?
-                   removeModalBackdrop doc
-                 ,
-              Props.unsafeMkProps "data-toggle" "modal",
-              Props.unsafeMkProps "data-target" "#setreminderModal"
+                 -- TODO: Couldn't this fail? Should we just keep doing it until it succeeds and then stop?
+                 _ <- setInterval 300 $ removeModalBackdrop doc
+                 { trelloToken } <- React.getState that
+                 case trelloToken of
+                   Nothing -> Helpers.showBootstrapModal "#authorizationModal"
+                   Just _ -> Helpers.showBootstrapModal "#setreminderModal"
             ]
             [ DOM.text "Set a reminder" ],
 
             React.createLeafElement modalClass { trelloIDMember: idmember },
-            React.createLeafElement loadingModalClass { }
+            React.createLeafElement loadingModalClass { },
+            React.createLeafElement authorizationModalClass { }
+          ]
+
+
+authorizationModalClass :: React.ReactClass { }
+authorizationModalClass = React.component "AuthorizationModal" component
+  where
+  component this =
+    pure {
+           state: {
+                    trelloAPIKey: "" :: String
+                  },
+           render: render this
+         }
+    where
+      render that = do
+        runAff_
+          (\e ->
+            case e of
+              -- TODO: If an error occurs, we should abort
+              Left err -> Helpers.alert $ "Sorry, an error occured while retrieving the Trello API Key: " <> (show err)
+              Right res -> React.setState that { trelloAPIKey: res }
+          )
+          (do
+              eConfig <- getConfig
+              case eConfig of
+                Left err -> throwError $ error err
+                Right res -> pure res.trelloAPIKey
+          )
+        { trelloAPIKey } <- React.getState that
+        pure $
+          DOM.div
+          [
+            Props._id "authorizationModal",
+            Props.className "modal fade",
+            Props.unsafeMkProps "aria-hidden" "true"
+          ]
+          [
+            DOM.div
+            [
+              Props.className "modal-dialog modal-dialog-centered",
+              Props.role "document"
+            ]
+            [
+              DOM.div
+              [
+                Props.className "modal-content"
+              ]
+              [
+                -- modal header
+                DOM.div
+                [
+                  Props.className "modal-header"
+                ]
+                [
+                  DOM.h5
+                  [
+                    Props.className "modal-title h2"
+                  ]
+                  [
+                    DOM.text "Trello Authorization"
+                  ]
+                ],
+
+                -- modal body
+                DOM.div
+                [
+                  Props.className "modal-body"
+                ]
+                [
+                  DOM.p
+                  [
+                    Props.className "test"
+                  ]
+                  [
+                    DOM.text "In order to continue, you will need to grant us authorization",
+                    DOM.br',
+                    DOM.text "to retrieve your data from Trello."
+                  ],
+
+                  DOM.a
+                  [
+                    Props.className "btn btn-success",
+                    Props.target "_blank",
+                    Props.href $ "https://trello.com/1/authorize"
+                                   <> "?expiration=never"
+                                   <> "&name=Trello Reminders"
+                                   <> "&response_type=token"
+                                   <> "&scope=read,account"
+                                   <> "&type=redirect"
+                                   <> "&interactive=true"
+                                   <> "&persist=false"
+
+                                  -- TODO: Get this from a config file
+                                  <> "&return_url=http://localhost:3000/trelloToken?trelloid=" <> "123my_trello_id"
+
+                                  <> "&key=" <> trelloAPIKey
+                  ]
+                  [
+                    DOM.text "Authorize"
+                  ]
+                ]
+
+                -- modal footer
+              ]
+            ]
           ]
 
 -- The modal that gets displayed on top of our form modal
 -- Used to signify to the user that the process for creating a new reminder is still running, for example
 -- https://stackoverflow.com/questions/48228724/centered-modal-load-spinner-bootstrap-4
 -- https://codepen.io/devwax/pen/Homjb
+-- TODO: Move this to a separate module
 loadingModalClass :: React.ReactClass { }
 loadingModalClass = React.component "LoadingModal" component
   where
@@ -605,6 +741,7 @@ loadingModalClass = React.component "LoadingModal" component
 
 
 -- ====== Validation ======== --
+-- TODO: Move to a separate module
 
 type ValidatedFormData = { name :: String, description :: String, emails :: Array String, datetime :: DateTime }
 
