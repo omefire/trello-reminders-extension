@@ -539,11 +539,11 @@ setReminderClass = React.component "Main" component
           (\e ->
              case e of
                Left err -> Helpers.alert $ "An error occured while retrieving your Trello token: " <> (show err)
-               Right r -> pure unit -- Helpers.alert $ "Success: " <> (show r)
+               Right r ->  React.setState that { trelloToken: r }
           )
           (do
             trelloToken <- getTrelloToken idmember
-            liftEffect $ React.setState that { trelloToken: trelloToken }
+            pure trelloToken
           )
        where
          getTrelloToken :: String -> Aff (Maybe String)
