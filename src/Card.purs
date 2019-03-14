@@ -583,17 +583,18 @@ setReminderClass = React.component "Main" component
 
             React.createLeafElement modalClass { trelloIDMember: idmember },
             React.createLeafElement loadingModalClass { },
-            React.createLeafElement authorizationModalClass { }
+            React.createLeafElement authorizationModalClass { trelloIDMember: idmember }
           ]
 
 
-authorizationModalClass :: React.ReactClass { }
+authorizationModalClass :: React.ReactClass { trelloIDMember :: String }
 authorizationModalClass = React.component "AuthorizationModal" component
   where
   component this =
     pure {
            state: {
-                    trelloAPIKey: "" :: String
+                    trelloAPIKey: "" :: String,
+                    webServiceURL: "" :: String
                   },
            render: render this
          }
@@ -605,15 +606,18 @@ authorizationModalClass = React.component "AuthorizationModal" component
             case e of
               -- TODO: If an error occurs, we should abort
               Left err -> Helpers.alert $ "Sorry, an error occured while retrieving the Trello API Key: " <> (show err)
-              Right res -> React.setState that { trelloAPIKey: res }
+              Right res -> do
+                let url = res.webServiceHost <> ":" <> res.webServicePort
+                React.setState that { trelloAPIKey: res.trelloAPIKey, webServiceURL: url }
           )
           (do
               eConfig <- getConfig
               case eConfig of
                 Left err -> throwError $ error err
-                Right res -> pure res.trelloAPIKey
+                Right res -> pure res
           )
-        { trelloAPIKey } <- React.getState that
+        { trelloAPIKey, webServiceURL } <- React.getState that
+        { trelloIDMember: trelloID } <- React.getProps that
         pure $
           DOM.div
           [
@@ -676,11 +680,8 @@ authorizationModalClass = React.component "AuthorizationModal" component
                                    <> "&type=redirect"
                                    <> "&interactive=true"
                                    <> "&persist=false"
-
-                                  -- TODO: Get this from a config file
-                                  <> "&return_url=http://localhost:3000/trelloToken?trelloid=" <> "123my_trello_id"
-
-                                  <> "&key=" <> trelloAPIKey
+                                   <> "&return_url=" <> webServiceURL <> "/static/trelloToken.html?trelloid=" <> trelloID
+                                   <> "&key=" <> trelloAPIKey
                   ]
                   [
                     DOM.text "Authorize"
@@ -828,7 +829,16 @@ displayEmails that isLoadingEmails emails
   errorThatOccuredWhileLoadingEmails
 
   | isLoadingEmails = [ DOM.text "Loading emails. Please, wait..." ]
-  | didErrorOccurWhileLoadingEmails = [ DOM.text $ "Sorry, an error occured while loading emails: " <> errorThatOccuredWhileLoadingEmails ]
+  | didErrorOccurWhileLoadingEmails =
+    [
+      DOM.div'
+      [
+        DOM.text $ "Sorry, an error occured while loading emails: ",
+        DOM.br',
+        DOM.text $ errorThatOccuredWhileLoadingEmails
+      ]
+    ]
+
   | (length emails == 0) = [ DOM.text "Please, contact info@trelloreminders.com", DOM.br',
                              DOM.text "to have emails registered to your account" ]
   | otherwise =  (flip map) (emails) $ \ email ->
