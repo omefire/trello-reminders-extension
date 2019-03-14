@@ -521,6 +521,7 @@ setReminderClass = React.component "Main" component
   component this =
     pure {
             state: {
+                     isLoading: true,
                      trelloToken: Nothing :: Maybe String
                    },
             render: render this,
@@ -536,19 +537,29 @@ setReminderClass = React.component "Main" component
       componentDidMount that = do
         { htmlDoc: doc, trelloIDMember: idmember } <- React.getProps that
         runAff_
-          (\e ->
+          (\e -> do
+             _ <- React.setState that { isLoading: false }
              case e of
                Left err -> Helpers.alert $ "An error occured while retrieving your Trello token: " <> (show err)
                Right r ->  React.setState that { trelloToken: r }
           )
           (do
+            _ <- liftEffect $ React.setState that { isLoading: true }
             trelloToken <- getTrelloToken idmember
             pure trelloToken
           )
        where
          getTrelloToken :: String -> Aff (Maybe String)
          getTrelloToken id = do
-           pure $ Nothing -- Just "abcd"
+           eConfig <- getConfig
+           case eConfig of
+             Left err -> throwError (error err)
+             Right { trelloAPIKey, webServiceHost, webServicePort } -> do
+               let url = webServiceHost <> ":" <> webServicePort <> "/getTrelloToken/" <> id
+               token <- AJAX.makeRequest url GET Nothing :: Aff (Either String String)
+               case token of
+                 Left _ -> pure Nothing
+                 Right tok -> pure $ Just tok
 
       render that = do
         { htmlDoc: doc, trelloIDMember: idmember } <- React.getProps that
@@ -560,10 +571,13 @@ setReminderClass = React.component "Main" component
               Props.onClick $ \evt -> do
                  -- TODO: Couldn't this fail? Should we just keep doing it until it succeeds and then stop?
                  _ <- setInterval 300 $ removeModalBackdrop doc
-                 { trelloToken } <- React.getState that
-                 case trelloToken of
-                   Nothing -> Helpers.showBootstrapModal "#authorizationModal"
-                   Just _ -> Helpers.showBootstrapModal "#setreminderModal"
+                 { trelloToken, isLoading } <- React.getState that
+                 case isLoading of
+                   true -> Helpers.alert "Please, try again later. We are still loading your data." -- Test this by pausing execution in the webservice while it retrieves the data asked for by this elt
+                   false -> do
+                     case trelloToken of
+                       Nothing -> Helpers.showBootstrapModal "#authorizationModal"
+                       Just _ -> Helpers.showBootstrapModal "#setreminderModal"
             ]
             [ DOM.text "Set a reminder" ],
 
@@ -585,6 +599,7 @@ authorizationModalClass = React.component "AuthorizationModal" component
          }
     where
       render that = do
+        -- TODO: Risk of race condition here. Fix this like in setReminderClass
         runAff_
           (\e ->
             case e of
