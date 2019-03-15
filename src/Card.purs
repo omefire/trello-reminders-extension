@@ -206,7 +206,8 @@ modalClass = React.component "Modal" component
             )
             (do
               eEmails <-  (runExceptT $ do
-                              user <- getTrelloData trelloID
+                              tok <- getTrelloToken trelloID
+                              user <- getTrelloData trelloID tok
                               id <- (case user.email of
                                         Nothing -> throwError $ "There is no email address associated to this user. \n" <> "Please, contact us at info@trelloreminders.com"
                                         Just email -> getUserID email
@@ -243,12 +244,19 @@ modalClass = React.component "Modal" component
                 emails <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String (Array { emailID :: Int, emailValue :: String }))
                 pure emails
 
-              getTrelloData :: String -> ExceptT String Aff TrelloUser
-              getTrelloData trelloID = do
+              getTrelloData :: String -> String -> ExceptT String Aff TrelloUser
+              getTrelloData trelloID trelloToken = do
                 config@{ trelloAPIKey } <- ExceptT getConfig
-                let url = "https://api.trello.com/1/members/" <> trelloID <> "?key=" <> trelloAPIKey -- <> "&token=" <> trelloToken
+                let url = "https://api.trello.com/1/members/" <> trelloID <> "?key=" <> trelloAPIKey <> "&token=" <> trelloToken
                 trelloUser <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String TrelloUser)
                 pure trelloUser
+
+              getTrelloToken :: String -> ExceptT String Aff String
+              getTrelloToken trelloID = do
+                config@{ trelloAPIKey, webServiceHost, webServicePort } <- ExceptT getConfig
+                let url = webServiceHost <> ":" <> webServicePort <> "/getTrelloToken/" <> trelloID
+                tok <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String String)
+                pure tok
 
         render state = do
           { name, formErrors, isNameValid, isDescriptionValid, isAtLeastOneEmailSelected, emails, isLoadingEmails, didErrorOccurWhileLoadingEmails, errorThatOccuredWhileLoadingEmails } <- state
@@ -383,10 +391,6 @@ modalClass = React.component "Modal" component
                                     DOM.tbody
                                     []
                                     $ displayEmails this isLoadingEmails emails didErrorOccurWhileLoadingEmails errorThatOccuredWhileLoadingEmails
-                                    -- $ if (isLoadingEmails) then [ DOM.text "Loading emails, please wait..." ]
-                                    --   else case (length emails) of
-                                    --            0 -> [ DOM.text "Please, contact info@trelloreminders.com", DOM.br', DOM.text " to have email addresses added to your account." ]
-                                    --            _ -> displayEmails this emails
                                   ]
                                 ]
                               ],
