@@ -56,7 +56,6 @@ import Web.DOM.NodeList (toArray) as NL
 import Web.HTML (window) as DOM
 import Web.HTML.HTMLDocument (toDocument, body) as DOM
 import Web.HTML.Window (document) as DOM
-import API.Trello (authorize) as Trello
 
 -- Used to get the UserID back from /getUserIDForEmail call
 type UserID = { userID :: Int }
