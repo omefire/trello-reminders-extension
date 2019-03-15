@@ -23,7 +23,6 @@ import Affjax as AX
 
 type Config =  {
   trelloAPIKey :: String,
-  trelloToken :: String,
   webServiceHost :: String,
   webServicePort :: String
 }
