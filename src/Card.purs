@@ -225,7 +225,6 @@ modalClass = React.component "Modal" component
               getUserID email = do
                 config@{ trelloAPIKey, webServiceHost, webServicePort } <- ExceptT getConfig
                 let url = webServiceHost <> ":" <> webServicePort <> "/getUserIDForEmail/" <> email
-                -- _ <- liftEffect $ Helpers.alert url
                 userID <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String Int)
                 pure userID
 
