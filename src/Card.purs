@@ -57,6 +57,8 @@ import Web.HTML (window) as DOM
 import Web.HTML.HTMLDocument (toDocument, body) as DOM
 import Web.HTML.Window (document) as DOM
 
+-- TODO: Better Error messages so that we can quickly fix things
+
 -- Used to convert to JSON, then include in POST request to /createReminder call
 newtype Reminder = Reminder
   { reminderID :: Int
