@@ -93,6 +93,8 @@ exports.hideBootstrapModal = function(selectorString) {
     };
 };
 
+// Remove everything after the '.'.
+// Example: "2016-01-09T15:04:26:00.000Z" -> "2016-01-09T15:04:26:00"
 exports.formatDate = function(dateStr) {
     return function() {
         return dateStr.split(".")[0];
