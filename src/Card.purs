@@ -38,7 +38,7 @@ import Effect.Aff (launchAff)
 import Effect.Class (liftEffect)
 import Effect.Console (log, logShow)
 import Effect.Timer (setInterval, setTimeout)
-import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, documentHead, setOnLoad, showModal, show, setTimeout, setInterval, flatpickr, getElementsByClassName, showBootstrapModal, hideBootstrapModal) as Helpers
+import Helpers.Card (getCardIdFromUrl, getFirstElementByClassName, nextSibling, alert, getElementById, documentHead, setOnLoad, showModal, show, setTimeout, setInterval, flatpickr, getElementsByClassName, showBootstrapModal, hideBootstrapModal, formatDate) as Helpers
 import Partial.Unsafe (unsafePartial)
 import React as React
 import React.DOM (text, a, div, div', h5, span, i, span', img, form', form, fieldset', label', dialog, button', button, select', option', label, input, ul, li, p, table, tbody, tr', td', tr, br') as DOM
@@ -56,9 +56,6 @@ import Web.DOM.NodeList (toArray) as NL
 import Web.HTML (window) as DOM
 import Web.HTML.HTMLDocument (toDocument, body) as DOM
 import Web.HTML.Window (document) as DOM
-
--- Used to get the UserID back from /getUserIDForEmail call
-type UserID = { userID :: Int }
 
 -- Used to convert to JSON, then include in POST request to /createReminder call
 newtype Reminder = Reminder
@@ -187,7 +184,7 @@ modalClass = React.component "Modal" component
                       didErrorOccurWhileLoadingEmails: false,
                       errorThatOccuredWhileLoadingEmails: "",
                       mTrelloUser: Nothing :: Maybe TrelloUser,
-                      mUserID: Nothing :: Maybe UserID
+                      mUserID: Nothing :: Maybe Int
                     },
              componentDidMount: componentDidMount this,
              render: render $ React.getState this
@@ -207,12 +204,12 @@ modalClass = React.component "Modal" component
               eEmails <-  (runExceptT $ do
                               tok <- getTrelloToken trelloID
                               user <- getTrelloData trelloID tok
-                              id <- (case user.email of
-                                        Nothing -> throwError $ "There is no email address associated to this user. \n" <> "Please, contact us at info@trelloreminders.com"
-                                        Just email -> getUserID email
-                                    )
-                              _ <- liftEffect $ React.setState that { mTrelloUser: Just user, mUserID: (Just id) }
-                              emails <- getEmails id.userID
+                              uid <- (case user.email of
+                                         Nothing -> throwError $ "There is no email address associated to this user. \n" <> "Please, contact us at info@trelloreminders.com"
+                                         Just email -> getUserID email
+                                     )
+                              _ <- liftEffect $ React.setState that { mTrelloUser: Just user, mUserID: Just uid }
+                              emails <- getEmails uid
                               pure $ emails)
               case eEmails of
                    Left err -> throwError $ error err
@@ -229,11 +226,12 @@ modalClass = React.component "Modal" component
               --   _ <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String Unit)
               --   pure unit
 
-              getUserID :: String -> ExceptT String Aff UserID
+              getUserID :: String -> ExceptT String Aff Int
               getUserID email = do
                 config@{ trelloAPIKey, webServiceHost, webServicePort } <- ExceptT getConfig
                 let url = webServiceHost <> ":" <> webServicePort <> "/getUserIDForEmail/" <> email
-                userID <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String UserID)
+                -- _ <- liftEffect $ Helpers.alert url
+                userID <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String Int)
                 pure userID
 
               getEmails :: Int -> ExceptT String Aff (Array { emailID :: Int, emailValue :: String })
@@ -465,6 +463,7 @@ modalClass = React.component "Modal" component
                                     (\formData -> do
                                       React.setState this { isNameValid: true, isDescriptionValid: true, formErrors: { errors: [] } }
                                       jsDateISOStr <- JSDate.toISOString jsDate
+                                      jsDateFormatted <- Helpers.formatDate jsDateISOStr
 
                                       -- Submit data to server via AJAX
                                       -- TODO: https://stackoverflow.com/questions/48228724/centered-modal-load-spinner-bootstrap-4
@@ -486,17 +485,17 @@ modalClass = React.component "Modal" component
                                           _ <- liftEffect $ Helpers.showBootstrapModal "#loadingModal"
                                           res <- runExceptT $ do
                                                    { webServiceHost, webServicePort } <- ExceptT getConfig
-                                                   user <- (case mUserID of
+                                                   uid <- (case mUserID of
                                                              Nothing -> throwError "An error occured while retrieving this user's trello data"
                                                              Just u -> pure u
-                                                           )
+                                                          )
                                                    let url = webServiceHost <> ":" <> webServicePort <> "/createReminder"
                                                    let reminder =          { reminderID: -1 -- The server will assign a proper ID
                                                                            , reminderName: name
                                                                            , reminderDescription: description
-                                                                           , reminderDateTime: jsDateISOStr
+                                                                           , reminderDateTime: jsDateFormatted
                                                                            , reminderEmails: ( filter (\eml -> eml.isChecked) emails )
-                                                                           , reminderUserID: (user.userID)
+                                                                           , reminderUserID: (uid)
                                                                            }
                                                    newReminderID <- ExceptT $ ( AJAX.makeRequest url POST (Just (encodeJson reminder)) :: Aff (Either String Int) )
                                                    pure newReminderID

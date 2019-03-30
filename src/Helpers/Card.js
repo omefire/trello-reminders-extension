@@ -92,3 +92,9 @@ exports.hideBootstrapModal = function(selectorString) {
         $(selectorString).modal('hide');
     };
 };
+
+exports.formatDate = function(dateStr) {
+    return function() {
+        return dateStr.split(".")[0];
+    };
+};
