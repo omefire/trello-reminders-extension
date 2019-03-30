@@ -221,13 +221,6 @@ modalClass = React.component "Modal" component
               formatEmailsForUI :: Array { emailID :: Int, emailValue :: String } -> Array { emailID :: Int, emailValue :: String, isChecked :: Boolean }
               formatEmailsForUI emails = (flip map) emails $ \e -> { emailID: e.emailID, isChecked: false, emailValue: e.emailValue }
 
-              -- authorize :: ExceptT String Aff Unit
-              -- authorize = do
-              --   config@{ trelloAPIKey, trelloToken } <- ExceptT getConfig
-              --   let url = "https://trello.com/1/authorize?expiration=never&scope=read,write,account&response_type=token&name=Server%20Token&key=cda83ba306e0f05684bf81cb6fd201b9"
-              --   _ <- ExceptT $ AJAX.makeRequest url GET Nothing :: Aff (Either String Unit)
-              --   pure unit
-
               getUserID :: String -> ExceptT String Aff Int
               getUserID email = do
                 config@{ trelloAPIKey, webServiceHost, webServicePort } <- ExceptT getConfig
