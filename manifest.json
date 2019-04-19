@@ -2,7 +2,7 @@
     "name": "Trello Reminders",
     "short_name": "Trello Reminders",
     "description": "Chrome extension for Trello Reminders",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "manifest_version": 2,
     "browser_action": {
         "default_popup": "popup.html",
